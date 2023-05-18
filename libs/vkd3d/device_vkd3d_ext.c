@@ -281,6 +281,28 @@ static HRESULT STDMETHODCALLTYPE d3d12_device_vkd3d_ext_SetCreatePipelineStateOp
     return NVAPI_OK;
 }
 
+static HRESULT STDMETHODCALLTYPE d3d12_device_vkd3d_ext_CheckDriverMatchingIdentifierEx(d3d12_device_vkd3d_ext_iface *iface,
+        void *params)
+{
+    NVAPI_CHECK_DRIVER_MATCHING_IDENTIFIER_EX_PARAMS *nvParams = params;
+
+    TRACE("iface %p, params %p.\n", iface, params);
+
+    if (!nvParams)
+        return NVAPI_INVALID_ARGUMENT;
+
+    if (nvParams->version != NVAPI_CHECK_DRIVER_MATCHING_IDENTIFIER_EX_PARAMS_VER1)
+        return NVAPI_INCOMPATIBLE_STRUCT_VERSION;
+
+    if (nvParams->serializedDataType == NVAPI_D3D12_SERIALIZED_DATA_RAYTRACING_ACCELERATION_STRUCTURE_EX ||
+            nvParams->serializedDataType == NVAPI_D3D12_SERIALIZED_DATA_RAYTRACING_OPACITY_MICROMAP_ARRAY_EX)
+        nvParams->checkStatus = D3D12_DRIVER_MATCHING_IDENTIFIER_UNRECOGNIZED;
+    else
+        nvParams->checkStatus = D3D12_DRIVER_MATCHING_IDENTIFIER_UNSUPPORTED_TYPE;
+
+    return NVAPI_OK;
+}
+
 CONST_VTBL struct ID3D12DeviceExt1Vtbl d3d12_device_vkd3d_ext_vtbl =
 {
     /* IUnknown methods */

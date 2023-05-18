@@ -69,6 +69,9 @@ static BOOL STDMETHODCALLTYPE d3d12_device_vkd3d_ext_GetExtensionSupport(d3d12_d
     TRACE("iface %p, extension %u\n", iface, extension);
     switch (extension)
     {
+        case D3D12_VK_EXT_OPACITY_MICROMAP:
+            ret_val = device->vk_info.EXT_opacity_micromap;
+            break;
         case D3D12_VK_NVX_BINARY_IMPORT:
             ret_val = device->vk_info.NVX_binary_import;
             break;

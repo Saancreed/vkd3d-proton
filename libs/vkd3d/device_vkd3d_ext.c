@@ -303,6 +303,95 @@ static HRESULT STDMETHODCALLTYPE d3d12_device_vkd3d_ext_CheckDriverMatchingIdent
     return NVAPI_OK;
 }
 
+static HRESULT STDMETHODCALLTYPE d3d12_device_vkd3d_ext_GetRaytracingAccelerationStructurePrebuildInfoEx(d3d12_device_vkd3d_ext_iface *iface,
+        void *params)
+{
+    NVAPI_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_EX_PARAMS *nvParams = params;
+    struct d3d12_device *device = d3d12_device_from_ID3D12DeviceExt(iface);
+
+    VkAccelerationStructureTrianglesOpacityMicromapEXT omms_stack[VKD3D_BUILD_INFO_STACK_COUNT];
+    VkAccelerationStructureGeometryKHR geometries_stack[VKD3D_BUILD_INFO_STACK_COUNT];
+    const struct vkd3d_vk_device_procs *vk_procs = &device->vk_procs;
+    uint32_t primitive_counts_stack[VKD3D_BUILD_INFO_STACK_COUNT];
+    D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO *info;
+    VkAccelerationStructureTrianglesOpacityMicromapEXT *omms;
+    VkAccelerationStructureBuildGeometryInfoKHR build_info;
+    VkAccelerationStructureBuildSizesInfoKHR size_info;
+    VkAccelerationStructureGeometryKHR *geometries;
+    uint32_t *primitive_counts;
+    uint32_t geometry_count;
+    HRESULT ns = NVAPI_OK;
+
+    TRACE("iface %p, params %p.\n", iface, params);
+
+    if (!params)
+        return NVAPI_INVALID_ARGUMENT;
+
+    if (nvParams->version != NVAPI_GET_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO_EX_PARAMS_VER1)
+        return NVAPI_INCOMPATIBLE_STRUCT_VERSION;
+
+    if (!nvParams->pDesc || !nvParams->pInfo)
+        return NVAPI_INVALID_ARGUMENT;
+
+    info = nvParams->pInfo;
+
+    if (!d3d12_device_supports_ray_tracing_tier_1_0(device))
+    {
+        ERR("Acceleration structure is not supported. Calling this is invalid.\n");
+        memset(info, 0, sizeof(*info));
+        return NVAPI_NOT_SUPPORTED;
+    }
+
+    geometry_count = vkd3d_acceleration_structure_get_geometry_count_nv(nvParams->pDesc);
+    primitive_counts = primitive_counts_stack;
+    geometries = geometries_stack;
+    omms = omms_stack;
+
+    if (geometry_count > VKD3D_BUILD_INFO_STACK_COUNT)
+    {
+        primitive_counts = vkd3d_malloc(geometry_count * sizeof(*primitive_counts));
+        geometries = vkd3d_malloc(geometry_count * sizeof(*geometries));
+        omms = vkd3d_malloc(geometry_count * sizeof(*omms));
+    }
+
+    if (!vkd3d_acceleration_structure_convert_inputs_nv(device,
+            nvParams->pDesc, &build_info, geometries, omms, NULL, primitive_counts))
+    {
+        ERR("Failed to convert inputs.\n");
+        memset(info, 0, sizeof(*info));
+        ns = NVAPI_ERROR;
+        goto cleanup;
+    }
+
+    build_info.pGeometries = geometries;
+
+    memset(&size_info, 0, sizeof(size_info));
+    size_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
+
+    VK_CALL(vkGetAccelerationStructureBuildSizesKHR(device->vk_device,
+            VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &build_info,
+            primitive_counts, &size_info));
+
+    info->ResultDataMaxSizeInBytes = size_info.accelerationStructureSize;
+    info->ScratchDataSizeInBytes = size_info.buildScratchSize;
+    info->UpdateScratchDataSizeInBytes = size_info.updateScratchSize;
+
+    TRACE("ResultDataMaxSizeInBytes: %"PRIu64".\n", info->ResultDataMaxSizeInBytes);
+    TRACE("ScratchDatSizeInBytes: %"PRIu64".\n", info->ScratchDataSizeInBytes);
+    TRACE("UpdateScratchDataSizeInBytes: %"PRIu64".\n", info->UpdateScratchDataSizeInBytes);
+
+cleanup:
+
+    if (geometry_count > VKD3D_BUILD_INFO_STACK_COUNT)
+    {
+        vkd3d_free(primitive_counts);
+        vkd3d_free(geometries);
+        vkd3d_free(omms);
+    }
+
+    return ns;
+}
+
 CONST_VTBL struct ID3D12DeviceExt1Vtbl d3d12_device_vkd3d_ext_vtbl =
 {
     /* IUnknown methods */

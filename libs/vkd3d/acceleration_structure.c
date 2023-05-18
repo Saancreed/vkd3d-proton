@@ -48,6 +48,22 @@ static VkBuildAccelerationStructureFlagsKHR d3d12_build_flags_to_vk(
     return vk_flags;
 }
 
+static VkBuildAccelerationStructureFlagsKHR nv_build_flags_to_vk(
+        NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS_EX flags)
+{
+    VkBuildAccelerationStructureFlagsKHR vk_flags = d3d12_build_flags_to_vk(
+        (D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS)flags);
+
+    if (flags & NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_OMM_UPDATE_EX)
+        vk_flags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_OPACITY_MICROMAP_UPDATE_EXT;
+    if (flags & NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_DISABLE_OMMS_EX)
+        vk_flags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_DISABLE_OPACITY_MICROMAPS_EXT;
+    if (flags & NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_OMM_OPACITY_STATES_UPDATE_EX)
+        vk_flags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_OPACITY_MICROMAP_DATA_UPDATE_EXT;
+
+    return vk_flags;
+}
+
 static VkGeometryFlagsKHR d3d12_geometry_flags_to_vk(D3D12_RAYTRACING_GEOMETRY_FLAGS flags)
 {
     VkGeometryFlagsKHR vk_flags = 0;
@@ -314,6 +330,225 @@ bool vkd3d_acceleration_structure_convert_inputs(struct d3d12_device *device,
 
                 default:
                     FIXME("Unsupported geometry type %u.\n", geom_desc->Type);
+                    return false;
+            }
+
+            if (primitive_counts)
+                primitive_counts[i] = primitive_count;
+
+            if (range_infos)
+            {
+                range_infos[i].primitiveCount = primitive_count;
+                range_infos[i].firstVertex = 0;
+                range_infos[i].primitiveOffset = 0;
+                range_infos[i].transformOffset = 0;
+            }
+
+            RT_TRACE("  Primitive count %u.\n", primitive_count);
+        }
+    }
+
+    RT_TRACE("=====================\n");
+    return true;
+}
+
+uint32_t vkd3d_acceleration_structure_get_geometry_count_nv(
+        const NVAPI_D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS_EX *desc)
+{
+    if (desc->type != D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL)
+        return 1;
+    else
+        return desc->numDescs;
+}
+
+bool vkd3d_acceleration_structure_convert_inputs_nv(struct d3d12_device *device,
+        const NVAPI_D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS_EX *desc,
+        VkAccelerationStructureBuildGeometryInfoKHR *build_info,
+        VkAccelerationStructureGeometryKHR *geometry_infos,
+        VkAccelerationStructureTrianglesOpacityMicromapEXT *omm_infos,
+        VkAccelerationStructureBuildRangeInfoKHR *range_infos,
+        uint32_t *primitive_counts,
+        bool *have_omm_usage_counts)
+{
+    VkAccelerationStructureTrianglesOpacityMicromapEXT *omm;
+    VkAccelerationStructureGeometryAabbsDataKHR *aabbs;
+    const NVAPI_D3D12_RAYTRACING_GEOMETRY_DESC_EX *geom_desc;
+    bool have_triangles, have_aabbs;
+    uint32_t primitive_count;
+    unsigned int i;
+
+    RT_TRACE("Converting inputs.\n");
+    RT_TRACE("=====================\n");
+
+    memset(build_info, 0, sizeof(*build_info));
+    build_info->sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
+
+    if (desc->type == D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL)
+    {
+        build_info->type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
+        RT_TRACE("Top level build.\n");
+    }
+    else
+    {
+        build_info->type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+        RT_TRACE("Bottom level build.\n");
+    }
+
+    build_info->flags = nv_build_flags_to_vk(desc->flags);
+
+    if (desc->flags & D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PERFORM_UPDATE)
+    {
+        RT_TRACE("BUILD_FLAG_PERFORM_UPDATE.\n");
+        build_info->mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR;
+    }
+    else
+        build_info->mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
+
+    if (desc->type == D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL)
+    {
+        memset(geometry_infos, 0, sizeof(*geometry_infos));
+        geometry_infos[0].sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
+        geometry_infos[0].geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR;
+        geometry_infos[0].geometry.instances.sType =
+                VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR;
+        geometry_infos[0].geometry.instances.arrayOfPointers =
+                desc->descsLayout == D3D12_ELEMENTS_LAYOUT_ARRAY_OF_POINTERS ? VK_TRUE : VK_FALSE;
+        geometry_infos[0].geometry.instances.data.deviceAddress = desc->instanceDescs;
+
+        if (primitive_counts)
+            primitive_counts[0] = desc->numDescs;
+
+        if (range_infos)
+        {
+            range_infos[0].primitiveCount = desc->numDescs;
+            range_infos[0].firstVertex = 0;
+            range_infos[0].primitiveOffset = 0;
+            range_infos[0].transformOffset = 0;
+        }
+
+        build_info->geometryCount = 1;
+        RT_TRACE("  ArrayOfPointers: %u.\n",
+                desc->descsLayout == D3D12_ELEMENTS_LAYOUT_ARRAY_OF_POINTERS ? 1 : 0);
+        RT_TRACE("  NumDescs: %u.\n", desc->numDescs);
+    }
+    else
+    {
+        have_triangles = false;
+        have_aabbs = false;
+
+        memset(geometry_infos, 0, sizeof(*geometry_infos) * desc->numDescs);
+        memset(omm_infos, 0, sizeof(*omm_infos) * desc->numDescs);
+
+        if (primitive_counts)
+            memset(primitive_counts, 0, sizeof(*primitive_counts) * desc->numDescs);
+
+        build_info->geometryCount = desc->numDescs;
+
+        for (i = 0; i < desc->numDescs; i++)
+        {
+            geometry_infos[i].sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
+            RT_TRACE(" Geom %u:\n", i);
+
+            if (desc->descsLayout == D3D12_ELEMENTS_LAYOUT_ARRAY_OF_POINTERS)
+            {
+                geom_desc = desc->ppGeometryDescs[i];
+                RT_TRACE("  ArrayOfPointers\n");
+            }
+            else
+            {
+                geom_desc = (const NVAPI_D3D12_RAYTRACING_GEOMETRY_DESC_EX *)(((const char *)desc->pGeometryDescs) + desc->geometryDescStrideInBytes * i);
+                RT_TRACE("  PointerToArray\n");
+            }
+
+            geometry_infos[i].flags = d3d12_geometry_flags_to_vk(geom_desc->flags);
+            RT_TRACE("  Flags = #%x\n", geom_desc->flags);
+
+            switch (geom_desc->type)
+            {
+                case D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES:
+                    if (have_aabbs)
+                    {
+                        ERR("Cannot mix and match geometry types in a BLAS.\n");
+                        return false;
+                    }
+                    have_triangles = true;
+
+                    vkd3d_acceleration_structure_convert_triangles(device,
+                            &geom_desc->triangles, &geometry_infos[i], &primitive_count);
+                    break;
+
+                case D3D12_RAYTRACING_GEOMETRY_TYPE_PROCEDURAL_PRIMITIVE_AABBS:
+                    if (have_triangles)
+                    {
+                        ERR("Cannot mix and match geometry types in a BLAS.\n");
+                        return false;
+                    }
+                    have_aabbs = true;
+
+                    geometry_infos[i].geometryType = VK_GEOMETRY_TYPE_AABBS_KHR;
+                    aabbs = &geometry_infos[i].geometry.aabbs;
+                    aabbs->sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_AABBS_DATA_KHR;
+                    aabbs->stride = geom_desc->aabbs.AABBs.StrideInBytes;
+                    aabbs->data.deviceAddress = geom_desc->aabbs.AABBs.StartAddress;
+                    primitive_count = geom_desc->aabbs.AABBCount;
+                    RT_TRACE("  AABB stride: %"PRIu64" bytes\n", geom_desc->aabbs.AABBs.StrideInBytes);
+                    break;
+
+                case NVAPI_D3D12_RAYTRACING_GEOMETRY_TYPE_OMM_TRIANGLES_EX:
+                    if (have_aabbs)
+                    {
+                        ERR("Cannot mix and match geometry types in a BLAS.\n");
+                        return false;
+                    }
+                    have_triangles = true;
+
+                    vkd3d_acceleration_structure_convert_triangles(device,
+                            &geom_desc->ommTriangles.triangles, &geometry_infos[i], &primitive_count);
+
+                    geometry_infos[i].geometry.triangles.pNext = omm = &omm_infos[i];
+                    omm->sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_TRIANGLES_OPACITY_MICROMAP_EXT;
+                    omm->pNext = NULL;
+                    omm->indexType =
+                                geom_desc->ommTriangles.ommAttachment.opacityMicromapIndexFormat == DXGI_FORMAT_R16_UINT ?
+                                        VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32;
+                    omm->indexBuffer.deviceAddress = geom_desc->ommTriangles.ommAttachment.opacityMicromapIndexBuffer.StartAddress;
+                    omm->indexStride = geom_desc->ommTriangles.ommAttachment.opacityMicromapIndexBuffer.StrideInBytes;
+                    omm->baseTriangle = geom_desc->ommTriangles.ommAttachment.opacityMicromapBaseLocation;
+
+                    if (geom_desc->ommTriangles.ommAttachment.numOMMUsageCounts && geom_desc->ommTriangles.ommAttachment.pOMMUsageCounts)
+                    {
+                        STATIC_ASSERT(sizeof(VkMicromapUsageEXT) == sizeof(NVAPI_D3D12_RAYTRACING_OPACITY_MICROMAP_USAGE_COUNT));
+                        STATIC_ASSERT(offsetof(VkMicromapUsageEXT, count) == offsetof(NVAPI_D3D12_RAYTRACING_OPACITY_MICROMAP_USAGE_COUNT, count));
+                        STATIC_ASSERT(offsetof(VkMicromapUsageEXT, subdivisionLevel) == offsetof(NVAPI_D3D12_RAYTRACING_OPACITY_MICROMAP_USAGE_COUNT, subdivisionLevel));
+                        STATIC_ASSERT(offsetof(VkMicromapUsageEXT, format) == offsetof(NVAPI_D3D12_RAYTRACING_OPACITY_MICROMAP_USAGE_COUNT, format));
+                        STATIC_ASSERT(sizeof(uint32_t) == sizeof(NVAPI_D3D12_RAYTRACING_OPACITY_MICROMAP_FORMAT));
+                        omm->pUsageCounts = (const void *)geom_desc->ommTriangles.ommAttachment.pOMMUsageCounts;
+                        omm->usageCountsCount = geom_desc->ommTriangles.ommAttachment.numOMMUsageCounts;
+
+                        if (have_omm_usage_counts)
+                            *have_omm_usage_counts = true;
+                    }
+
+                    if (geom_desc->ommTriangles.ommAttachment.opacityMicromapArray)
+                    {
+                        omm->micromap = vkd3d_va_map_place_opacity_micromap(
+                                &device->memory_allocator.va_map, device,
+                                geom_desc->ommTriangles.ommAttachment.opacityMicromapArray);
+
+                        if (omm->micromap == VK_NULL_HANDLE)
+                            ERR("Failed to place OMM at VA 0x%"PRIx64".\n", geom_desc->ommTriangles.ommAttachment.opacityMicromapArray);
+                    }
+
+                    RT_TRACE("  OMM Index type: %s\n", debug_dxgi_format(geom_desc->ommTriangles.ommAttachment.opacityMicromapIndexFormat));
+                    RT_TRACE("  OMM IBO VA: %"PRIx64"\n", geom_desc->ommTriangles.ommAttachment.opacityMicromapIndexBuffer.StartAddress);
+                    RT_TRACE("  OMM Index stride: %"PRIu64" bytes\n", geom_desc->ommTriangles.ommAttachment.opacityMicromapIndexBuffer.StrideInBytes);
+                    RT_TRACE("  OMM Base: %u\n", geom_desc->ommTriangles.ommAttachment.opacityMicromapBaseLocation);
+                    RT_TRACE("  OMM Usage counts: %u\n", geom_desc->ommTriangles.ommAttachment.numOMMUsageCounts);
+                    RT_TRACE("  OMM Micromap VA: %"PRIx64"\n", geom_desc->ommTriangles.ommAttachment.opacityMicromapArray);
+                    break;
+
+                default:
+                    FIXME("Unsupported geometry type %u.\n", geom_desc->type);
                     return false;
             }
 

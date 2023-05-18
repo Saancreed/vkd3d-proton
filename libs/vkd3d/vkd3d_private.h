@@ -44,6 +44,7 @@
 #include "vkd3d_native_sync_handle.h"
 #include "config_flags.h"
 #include "copy_utils.h"
+#include "nvapi.h"
 #include <assert.h>
 #include <inttypes.h>
 #include <limits.h>

@@ -36,6 +36,19 @@ static VkBuildMicromapFlagsEXT d3d12_build_flags_to_vk(
     return vk_flags;
 }
 
+static VkBuildMicromapFlagsEXT nv_d3d12_build_flags_to_vk(
+        NVAPI_D3D12_RAYTRACING_OPACITY_MICROMAP_ARRAY_BUILD_FLAGS flags)
+{
+    VkBuildMicromapFlagsEXT vk_flags = 0;
+
+    if (flags & NVAPI_D3D12_RAYTRACING_OPACITY_MICROMAP_ARRAY_BUILD_FLAG_PREFER_FAST_TRACE)
+        vk_flags |= VK_BUILD_MICROMAP_PREFER_FAST_TRACE_BIT_EXT;
+    if (flags & NVAPI_D3D12_RAYTRACING_OPACITY_MICROMAP_ARRAY_BUILD_FLAG_PREFER_FAST_BUILD)
+        vk_flags |= VK_BUILD_MICROMAP_PREFER_FAST_BUILD_BIT_EXT;
+
+    return vk_flags;
+}
+
 static VkOpacityMicromapFormatEXT d3d12_format_to_vk(
         D3D12_RAYTRACING_OPACITY_MICROMAP_FORMAT format)
 {
@@ -110,6 +123,54 @@ bool vkd3d_opacity_micromap_convert_inputs(const struct d3d12_device *device,
     RT_TRACE(" IBO VA: %"PRIx64"\n", desc->InputBuffer);
     RT_TRACE(" Triangles VA: %"PRIx64"\n", desc->PerOmmDescs.StartAddress);
     RT_TRACE(" Triangles stride: %"PRIu64" bytes\n", desc->PerOmmDescs.StrideInBytes);
+
+    RT_TRACE("=====================\n");
+    return true;
+}
+
+
+bool vkd3d_opacity_micromap_convert_inputs_nv(const struct d3d12_device *device,
+        const NVAPI_D3D12_BUILD_RAYTRACING_OPACITY_MICROMAP_ARRAY_INPUTS *desc,
+        VkMicromapBuildInfoEXT *build_info,
+        VkMicromapUsageEXT *usages)
+{
+    const NVAPI_D3D12_RAYTRACING_OPACITY_MICROMAP_USAGE_COUNT *usage_count;
+    VkMicromapUsageEXT *usage;
+    unsigned int i;
+
+    RT_TRACE("Converting inputs.\n");
+    RT_TRACE("=====================\n");
+    memset(build_info, 0, sizeof(*build_info));
+    build_info->sType = VK_STRUCTURE_TYPE_MICROMAP_BUILD_INFO_EXT;
+    build_info->type = VK_MICROMAP_TYPE_OPACITY_MICROMAP_EXT;
+    build_info->flags = nv_d3d12_build_flags_to_vk(desc->flags);
+    build_info->mode = VK_BUILD_MICROMAP_MODE_BUILD_EXT;
+    build_info->usageCountsCount = desc->numOMMUsageCounts;
+
+    for (i = 0; i < desc->numOMMUsageCounts; i++)
+    {
+        RT_TRACE(" Usage count %u:\n", i);
+
+        usage_count = &desc->pOMMUsageCounts[i];
+        usage = &usages[i];
+
+        usage->count = usage_count->count;
+        usage->subdivisionLevel = usage_count->subdivisionLevel;
+        usage->format = d3d12_format_to_vk((D3D12_RAYTRACING_OPACITY_MICROMAP_FORMAT)usage_count->format);
+
+        RT_TRACE("  Count: %u\n", usage_count->count);
+        RT_TRACE("  Subdivision level: %u\n", usage_count->subdivisionLevel);
+        RT_TRACE("  Format: %s\n", debug_omm_format((D3D12_RAYTRACING_OPACITY_MICROMAP_FORMAT)usage_count->format));
+    }
+
+    build_info->pUsageCounts = usages;
+    build_info->data.deviceAddress = desc->inputBuffer;
+    build_info->triangleArray.deviceAddress = desc->perOMMDescs.StartAddress;
+    build_info->triangleArrayStride = desc->perOMMDescs.StrideInBytes;
+
+    RT_TRACE(" IBO VA: %"PRIx64"\n", desc->inputBuffer);
+    RT_TRACE(" Triangles VA: %"PRIx64"\n", desc->perOMMDescs.StartAddress);
+    RT_TRACE(" Triangles stride: %"PRIu64" bytes\n", desc->perOMMDescs.StrideInBytes);
 
     RT_TRACE("=====================\n");
     return true;
@@ -206,6 +267,30 @@ void vkd3d_opacity_micromap_write_postbuild_info(
     }
 }
 
+static void vkd3d_opacity_micromap_write_postbuild_info_nv(
+        struct d3d12_command_list *list,
+        const NVAPI_D3D12_RAYTRACING_OPACITY_MICROMAP_ARRAY_POSTBUILD_INFO_DESC *desc,
+        VkDeviceSize desc_offset,
+        VkMicromapEXT vk_opacity_micromap)
+{
+    D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC d3d12_desc;
+    d3d12_desc.DestBuffer = desc->destBuffer;
+
+    switch (desc->infoType)
+    {
+        case NVAPI_D3D12_RAYTRACING_OPACITY_MICROMAP_ARRAY_POSTBUILD_INFO_CURRENT_SIZE:
+            d3d12_desc.InfoType = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_CURRENT_SIZE;
+            break;
+
+        default:
+            FIXME("Unsupported InfoType %u.\n", desc->infoType);
+            d3d12_desc.InfoType = -1;
+            break;
+    }
+
+    vkd3d_opacity_micromap_write_postbuild_info(list, &d3d12_desc, desc_offset, vk_opacity_micromap);
+}
+
 void vkd3d_opacity_micromap_emit_postbuild_info(
         struct d3d12_command_list *list,
         const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC *desc,
@@ -249,6 +334,45 @@ void vkd3d_opacity_micromap_emit_postbuild_info(
     vkd3d_opacity_micromap_end_barrier(list);
 }
 
+void vkd3d_opacity_micromap_emit_postbuild_info_nv(
+        struct d3d12_command_list *list,
+        const NVAPI_D3D12_RAYTRACING_OPACITY_MICROMAP_ARRAY_POSTBUILD_INFO_DESC *desc,
+        uint32_t count,
+        const D3D12_GPU_VIRTUAL_ADDRESS *addresses)
+{
+    const struct vkd3d_vk_device_procs *vk_procs = &list->device->vk_procs;
+    VkMicromapEXT vk_opacity_micromap;
+    VkDependencyInfo dep_info;
+    VkMemoryBarrier2 barrier;
+    uint32_t i;
+
+    /* We resolve the query in TRANSFER, but DXR expects UNORDERED_ACCESS. */
+    memset(&barrier, 0, sizeof(barrier));
+    barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2;
+    barrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+    barrier.dstStageMask = VK_PIPELINE_STAGE_2_COPY_BIT;
+    barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+
+    memset(&dep_info, 0, sizeof(dep_info));
+    dep_info.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+    dep_info.memoryBarrierCount = 1;
+    dep_info.pMemoryBarriers = &barrier;
+
+    VK_CALL(vkCmdPipelineBarrier2(list->cmd.vk_command_buffer, &dep_info));
+
+    for (i = 0; i < count; i++)
+    {
+        vk_opacity_micromap = vkd3d_va_map_place_opacity_micromap(
+                &list->device->memory_allocator.va_map, list->device, addresses[i]);
+        if (vk_opacity_micromap)
+            vkd3d_opacity_micromap_write_postbuild_info_nv(list, desc, i * sizeof(uint64_t), vk_opacity_micromap);
+        else
+            ERR("Failed to query opacity micromap for VA 0x%"PRIx64".\n", addresses[i]);
+    }
+
+    vkd3d_opacity_micromap_end_barrier(list);
+}
+
 void vkd3d_opacity_micromap_emit_immediate_postbuild_info(
         struct d3d12_command_list *list, uint32_t count,
         const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC *desc,
@@ -279,6 +403,40 @@ void vkd3d_opacity_micromap_emit_immediate_postbuild_info(
 
     for (i = 0; i < count; i++)
         vkd3d_opacity_micromap_write_postbuild_info(list, &desc[i], 0, vk_opacity_micromap);
+
+    vkd3d_opacity_micromap_end_barrier(list);
+}
+
+void vkd3d_opacity_micromap_emit_immediate_postbuild_info_nv(
+        struct d3d12_command_list *list, uint32_t count,
+        const NVAPI_D3D12_RAYTRACING_OPACITY_MICROMAP_ARRAY_POSTBUILD_INFO_DESC *desc,
+        VkMicromapEXT vk_opacity_micromap)
+{
+    /* In D3D12 we are supposed to be able to emit without an explicit barrier,
+     * but we need to emit them for Vulkan. */
+
+    const struct vkd3d_vk_device_procs *vk_procs = &list->device->vk_procs;
+    VkDependencyInfo dep_info;
+    VkMemoryBarrier2 barrier;
+    uint32_t i;
+
+    memset(&barrier, 0, sizeof(barrier));
+    barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2;
+    barrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+    barrier.srcAccessMask = VK_ACCESS_2_MICROMAP_WRITE_BIT_EXT;
+    /* The query accesses MICROMAP_READ_BIT in BUILD_BIT stage. */
+    barrier.dstStageMask = VK_PIPELINE_STAGE_2_MICROMAP_BUILD_BIT_EXT | VK_PIPELINE_STAGE_2_COPY_BIT;
+    barrier.dstAccessMask = VK_ACCESS_2_MICROMAP_READ_BIT_EXT | VK_ACCESS_2_TRANSFER_WRITE_BIT;
+
+    memset(&dep_info, 0, sizeof(dep_info));
+    dep_info.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+    dep_info.memoryBarrierCount = 1;
+    dep_info.pMemoryBarriers = &barrier;
+
+    VK_CALL(vkCmdPipelineBarrier2(list->cmd.vk_command_buffer, &dep_info));
+
+    for (i = 0; i < count; i++)
+        vkd3d_opacity_micromap_write_postbuild_info_nv(list, &desc[i], 0, vk_opacity_micromap);
 
     vkd3d_opacity_micromap_end_barrier(list);
 }

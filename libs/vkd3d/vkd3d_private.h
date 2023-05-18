@@ -6891,6 +6891,10 @@ bool vkd3d_opacity_micromap_convert_inputs(const struct d3d12_device *device,
         const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS *inputs,
         VkMicromapBuildInfoEXT *build_info,
         VkMicromapUsageEXT *usages);
+bool vkd3d_opacity_micromap_convert_inputs_nv(const struct d3d12_device *device,
+        const NVAPI_D3D12_BUILD_RAYTRACING_OPACITY_MICROMAP_ARRAY_INPUTS *desc,
+        VkMicromapBuildInfoEXT *build_info,
+        VkMicromapUsageEXT *usages);
 void vkd3d_opacity_micromap_write_postbuild_info(
         struct d3d12_command_list *list,
         const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC *desc,
@@ -6901,9 +6905,18 @@ void vkd3d_opacity_micromap_emit_postbuild_info(
         const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC *desc,
         uint32_t count,
         const D3D12_GPU_VIRTUAL_ADDRESS *addresses);
+void vkd3d_opacity_micromap_emit_postbuild_info_nv(
+        struct d3d12_command_list *list,
+        const NVAPI_D3D12_RAYTRACING_OPACITY_MICROMAP_ARRAY_POSTBUILD_INFO_DESC *desc,
+        uint32_t count,
+        const D3D12_GPU_VIRTUAL_ADDRESS *addresses);
 void vkd3d_opacity_micromap_emit_immediate_postbuild_info(
         struct d3d12_command_list *list, uint32_t count,
         const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC *desc,
+        VkMicromapEXT vk_opacity_micromap);
+void vkd3d_opacity_micromap_emit_immediate_postbuild_info_nv(
+        struct d3d12_command_list *list, uint32_t count,
+        const NVAPI_D3D12_RAYTRACING_OPACITY_MICROMAP_ARRAY_POSTBUILD_INFO_DESC *desc,
         VkMicromapEXT vk_opacity_micromap);
 void vkd3d_opacity_micromap_copy(
         struct d3d12_command_list *list,

@@ -156,6 +156,7 @@ struct vkd3d_vulkan_info
     bool EXT_pageable_device_local_memory;
     bool EXT_memory_priority;
     bool EXT_dynamic_rendering_unused_attachments;
+    bool EXT_opacity_micromap;
     bool EXT_line_rasterization;
     bool EXT_image_compression_control;
     bool EXT_device_fault;
@@ -4457,6 +4458,7 @@ struct vkd3d_physical_device_info
     VkPhysicalDeviceDeviceGeneratedCommandsComputeFeaturesNV device_generated_commands_compute_features_nv;
     VkPhysicalDeviceMaintenance5FeaturesKHR maintenance_5_features;
     VkPhysicalDeviceMaintenance6FeaturesKHR maintenance_6_features;
+    VkPhysicalDeviceOpacityMicromapFeaturesEXT opacity_micromap_features;
     VkPhysicalDeviceLineRasterizationFeaturesEXT line_rasterization_features;
     VkPhysicalDeviceImageCompressionControlFeaturesEXT image_compression_control_features;
     VkPhysicalDeviceFaultFeaturesEXT fault_features;

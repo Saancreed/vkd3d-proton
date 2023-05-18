@@ -81,6 +81,8 @@ static const char *vkd3d_breadcrumb_command_type_to_str(enum vkd3d_breadcrumb_co
             return "copy_omm";
         case VKD3D_BREADCRUMB_COMMAND_EMIT_RTAS_POSTBUILD:
             return "emit_rtas_postbuild";
+        case VKD3D_BREADCRUMB_COMMAND_EMIT_OMM_POSTBUILD:
+            return "emit_omm_postbuild";
         case VKD3D_BREADCRUMB_COMMAND_TRACE_RAYS:
             return "trace_rays";
         case VKD3D_BREADCRUMB_COMMAND_BARRIER:

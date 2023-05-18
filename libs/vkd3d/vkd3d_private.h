@@ -2961,7 +2961,7 @@ struct vkd3d_rendering_info
 };
 
 /* ID3D12CommandListExt */
-typedef ID3D12GraphicsCommandListExt1 d3d12_command_list_vkd3d_ext_iface;
+typedef ID3D12GraphicsCommandListExt2 d3d12_command_list_vkd3d_ext_iface;
 
 struct d3d12_rt_state_object;
 
@@ -3470,6 +3470,20 @@ bool d3d12_command_list_reset_query(struct d3d12_command_list *list,
         VkQueryPool vk_pool, uint32_t index);
 void d3d12_command_list_end_current_render_pass(struct d3d12_command_list *list, bool suspend);
 void d3d12_command_list_invalidate_all_state(struct d3d12_command_list *list);
+void d3d12_command_list_mark_as_invalid(struct d3d12_command_list *list,
+        const char *message, ...);
+void d3d12_command_list_check_render_pass_validation(struct d3d12_command_list *list,
+        const char *user_driven_tag, bool action_command);
+void d3d12_command_list_end_transfer_batch(struct d3d12_command_list *list);
+bool d3d12_command_list_allocate_rtas_build_info(struct d3d12_command_list *list, uint32_t geometry_count,
+        VkAccelerationStructureBuildGeometryInfoKHR **build_info,
+        VkAccelerationStructureGeometryKHR **geometry_infos,
+        VkAccelerationStructureTrianglesOpacityMicromapEXT **omm_infos,
+        VkAccelerationStructureBuildRangeInfoKHR **range_infos);
+bool d3d12_command_list_allocate_omm_build_info(struct d3d12_command_list *list, uint32_t usage_count,
+        VkMicromapBuildInfoEXT **build_info,
+        VkMicromapUsageEXT **usage_infos);
+void d3d12_command_list_flush_rtas_batch(struct d3d12_command_list *list);
 
 void d3d12_command_list_debug_mark_label(struct d3d12_command_list *list, const char *tag,
         float r, float g, float b, float a);
@@ -4067,6 +4081,7 @@ enum vkd3d_breadcrumb_command_type
     VKD3D_BREADCRUMB_COMMAND_COPY_RTAS,
     VKD3D_BREADCRUMB_COMMAND_COPY_OMM,
     VKD3D_BREADCRUMB_COMMAND_EMIT_RTAS_POSTBUILD,
+    VKD3D_BREADCRUMB_COMMAND_EMIT_OMM_POSTBUILD,
     VKD3D_BREADCRUMB_COMMAND_TRACE_RAYS,
     VKD3D_BREADCRUMB_COMMAND_BARRIER,
     VKD3D_BREADCRUMB_COMMAND_AUX32, /* Used to report arbitrary 32-bit words as arguments to other commands. */

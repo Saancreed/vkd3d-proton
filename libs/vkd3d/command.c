@@ -80,12 +80,10 @@ static VkImageLayout d3d12_command_list_get_depth_stencil_resource_layout(const 
 static void d3d12_command_list_decay_optimal_dsv_resource(struct d3d12_command_list *list,
         const struct d3d12_resource *resource, uint32_t plane_optimal_mask,
         struct d3d12_command_list_barrier_batch *batch);
-static void d3d12_command_list_end_transfer_batch(struct d3d12_command_list *list);
 static void d3d12_command_list_end_transfer_batch_if_trivial(struct d3d12_command_list *list);
 static void d3d12_command_list_end_wbi_batch(struct d3d12_command_list *list);
 static inline void d3d12_command_list_ensure_transfer_batch(struct d3d12_command_list *list, enum vkd3d_batch_type type);
 static void d3d12_command_list_free_rtas_batch(struct d3d12_command_list *list);
-static void d3d12_command_list_flush_rtas_batch(struct d3d12_command_list *list);
 static void d3d12_command_list_clear_rtas_batch(struct d3d12_command_list *list);
 
 static void d3d12_command_list_flush_query_resolves(struct d3d12_command_list *list);
@@ -2277,7 +2275,7 @@ HRESULT d3d12_fence_iface_set_native_sync_handle_on_completion_explicit(ID3D12Fe
 }
 
 /* Command buffers */
-static void d3d12_command_list_mark_as_invalid(struct d3d12_command_list *list,
+void d3d12_command_list_mark_as_invalid(struct d3d12_command_list *list,
         const char *message, ...)
 {
     va_list args;
@@ -2320,7 +2318,7 @@ static void d3d12_command_list_update_conditional_rendering_state(struct d3d12_c
     }
 }
 
-static void d3d12_command_list_check_render_pass_validation(
+void d3d12_command_list_check_render_pass_validation(
         struct d3d12_command_list *list, const char *user_driven_tag, bool action_command)
 {
     if (user_driven_tag && list->is_inside_render_pass)
@@ -6750,7 +6748,8 @@ HRESULT STDMETHODCALLTYPE d3d12_command_list_QueryInterface(d3d12_command_list_i
     }
 
     if (IsEqualGUID(iid, &IID_ID3D12GraphicsCommandListExt)
-            || IsEqualGUID(iid, &IID_ID3D12GraphicsCommandListExt1))
+            || IsEqualGUID(iid, &IID_ID3D12GraphicsCommandListExt1)
+            || IsEqualGUID(iid, &IID_ID3D12GraphicsCommandListExt2))
     {
         d3d12_command_list_vkd3d_ext_AddRef(&command_list->ID3D12GraphicsCommandListExt_iface);
         *object = &command_list->ID3D12GraphicsCommandListExt_iface;
@@ -11127,7 +11126,7 @@ static void d3d12_command_list_end_transfer_batch_if_trivial(struct d3d12_comman
     }
 }
 
-static void d3d12_command_list_end_transfer_batch(struct d3d12_command_list *list)
+void d3d12_command_list_end_transfer_batch(struct d3d12_command_list *list)
 {
     struct d3d12_command_list_barrier_batch barriers;
     bool has_waw_skip = false;
@@ -20084,7 +20083,7 @@ static void d3d12_command_list_free_rtas_batch(struct d3d12_command_list *list)
     vkd3d_free(rtas_batch->omm_usage_infos);
 }
 
-static bool d3d12_command_list_allocate_rtas_build_info(struct d3d12_command_list *list, uint32_t geometry_count,
+bool d3d12_command_list_allocate_rtas_build_info(struct d3d12_command_list *list, uint32_t geometry_count,
         VkAccelerationStructureBuildGeometryInfoKHR **build_info,
         VkAccelerationStructureGeometryKHR **geometry_infos,
         VkAccelerationStructureTrianglesOpacityMicromapEXT **omm_infos,
@@ -20135,7 +20134,7 @@ static bool d3d12_command_list_allocate_rtas_build_info(struct d3d12_command_lis
     return true;
 }
 
-static bool d3d12_command_list_allocate_omm_build_info(struct d3d12_command_list *list, uint32_t usage_count,
+bool d3d12_command_list_allocate_omm_build_info(struct d3d12_command_list *list, uint32_t usage_count,
         VkMicromapBuildInfoEXT **build_info,
         VkMicromapUsageEXT **usage_infos)
 {
@@ -20174,7 +20173,7 @@ static void d3d12_command_list_clear_rtas_batch(struct d3d12_command_list *list)
     rtas_batch->omm_usage_info_count = 0;
 }
 
-static void d3d12_command_list_flush_rtas_batch(struct d3d12_command_list *list)
+void d3d12_command_list_flush_rtas_batch(struct d3d12_command_list *list)
 {
     const struct vkd3d_vk_device_procs *vk_procs = &list->device->vk_procs;
     struct d3d12_rtas_batch_state *rtas_batch = &list->rtas_batch;
@@ -21822,7 +21821,7 @@ static struct d3d12_command_list *unsafe_impl_from_ID3D12CommandList(ID3D12Comma
     return CONTAINING_RECORD(iface, struct d3d12_command_list, ID3D12GraphicsCommandList_iface);
 }
 
-extern CONST_VTBL struct ID3D12GraphicsCommandListExt1Vtbl d3d12_command_list_vkd3d_ext_vtbl;
+extern CONST_VTBL struct ID3D12GraphicsCommandListExt2Vtbl d3d12_command_list_vkd3d_ext_vtbl;
 
 static void d3d12_command_list_init_attachment_info(VkRenderingAttachmentInfo *attachment_info)
 {

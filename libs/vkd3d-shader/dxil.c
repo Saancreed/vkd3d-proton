@@ -932,6 +932,17 @@ int vkd3d_shader_compile_dxil(const struct vkd3d_shader_code *dxbc,
                     goto end;
                 }
             }
+            else if (compiler_args->target_extensions[i] == VKD3D_SHADER_TARGET_EXTENSION_OPACITY_MICROMAP)
+            {
+                static const dxil_spv_option_opacity_micromap helper =
+                        { { DXIL_SPV_OPTION_OPACITY_MICROMAP }, DXIL_SPV_TRUE };
+                if (dxil_spv_converter_add_option(converter, &helper.base) != DXIL_SPV_SUCCESS)
+                {
+                    ERR("dxil-spirv does not support OPACITY_MICROMAP.\n");
+                    ret = VKD3D_ERROR_NOT_IMPLEMENTED;
+                    goto end;
+                }
+            }
             else if (compiler_args->target_extensions[i] == VKD3D_SHADER_TARGET_EXTENSION_QUAD_CONTROL_RECONVERGENCE)
             {
                 dxil_spv_option_quad_control_reconvergence helper = { { DXIL_SPV_OPTION_QUAD_CONTROL_RECONVERGENCE } };
@@ -1628,6 +1639,17 @@ int vkd3d_shader_compile_dxil_export(const struct vkd3d_shader_code *dxil,
                 if (dxil_spv_converter_add_option(converter, &helper.base) != DXIL_SPV_SUCCESS)
                 {
                     ERR("dxil-spirv does not support SUBGROUP_PARTITIONED_NV.\n");
+                    ret = VKD3D_ERROR_NOT_IMPLEMENTED;
+                    goto end;
+                }
+            }
+            else if (compiler_args->target_extensions[i] == VKD3D_SHADER_TARGET_EXTENSION_OPACITY_MICROMAP)
+            {
+                static const dxil_spv_option_opacity_micromap helper =
+                        { { DXIL_SPV_OPTION_OPACITY_MICROMAP }, DXIL_SPV_TRUE };
+                if (dxil_spv_converter_add_option(converter, &helper.base) != DXIL_SPV_SUCCESS)
+                {
+                    ERR("dxil-spirv does not support OPACITY_MICROMAP.\n");
                     ret = VKD3D_ERROR_NOT_IMPLEMENTED;
                     goto end;
                 }

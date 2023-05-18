@@ -5730,6 +5730,8 @@ struct d3d12_device
     LUID adapter_luid;
     D3DKMT_HANDLE kmt_local;
 
+    VkPipelineCreateFlags global_ray_tracing_pipeline_create_flags;
+
     struct vkd3d_private_store private_store;
     struct d3d_destruction_notifier destruction_notifier;
     struct d3d12_caps d3d12_caps;

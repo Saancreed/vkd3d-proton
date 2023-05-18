@@ -834,7 +834,7 @@ static HRESULT STDMETHODCALLTYPE d3d12_device_vkd3d_ext_GetRaytracingAcceleratio
     }
 
     if (!vkd3d_acceleration_structure_convert_inputs_nv(device,
-            nvParams->pDesc, &build_info, geometries, omms, NULL, primitive_counts))
+            nvParams->pDesc, &build_info, geometries, omms, NULL, primitive_counts, NULL))
     {
         ERR("Failed to convert inputs.\n");
         memset(info, 0, sizeof(*info));
@@ -867,6 +867,76 @@ cleanup:
         vkd3d_free(geometries);
         vkd3d_free(omms);
     }
+
+    return ns;
+}
+
+static HRESULT STDMETHODCALLTYPE d3d12_device_vkd3d_ext_GetRaytracingOpacityMicromapArrayPrebuildInfo(d3d12_device_vkd3d_ext_iface *iface,
+        void *params)
+{
+    NVAPI_GET_RAYTRACING_OPACITY_MICROMAP_ARRAY_PREBUILD_INFO_PARAMS *nvParams = params;
+    struct d3d12_device *device = d3d12_device_from_ID3D12DeviceExt(iface);
+    NVAPI_D3D12_RAYTRACING_OPACITY_MICROMAP_ARRAY_PREBUILD_INFO *info;
+    const struct vkd3d_vk_device_procs *vk_procs = &device->vk_procs;
+    VkMicromapUsageEXT usages_stack[VKD3D_BUILD_INFO_STACK_COUNT];
+    VkMicromapBuildSizesInfoEXT size_info;
+    VkMicromapBuildInfoEXT build_info;
+    VkMicromapUsageEXT *usages;
+    uint32_t usages_count;
+    HRESULT ns = NVAPI_OK;
+
+    TRACE("iface %p, params %p.\n", iface, params);
+
+    if (!nvParams)
+        return NVAPI_INVALID_ARGUMENT;
+
+    if (nvParams->version != NVAPI_GET_RAYTRACING_OPACITY_MICROMAP_ARRAY_PREBUILD_INFO_PARAMS_VER1)
+        return NVAPI_INCOMPATIBLE_STRUCT_VERSION;
+
+    if (!nvParams->pDesc || !nvParams->pInfo)
+        return NVAPI_INVALID_ARGUMENT;
+
+    info = nvParams->pInfo;
+
+    if (!device->device_info.opacity_micromap_features.micromap)
+    {
+        ERR("Opacity micromap is not supported. Calling this is invalid.\n");
+        memset(info, 0, sizeof(*info));
+        return NVAPI_NOT_SUPPORTED;
+    }
+
+    usages_count = nvParams->pDesc->numOMMUsageCounts;
+
+    if (usages_count > VKD3D_BUILD_INFO_STACK_COUNT)
+        usages = vkd3d_malloc(usages_count * sizeof(*usages));
+    else
+        usages = usages_stack;
+
+    if (!vkd3d_opacity_micromap_convert_inputs_nv(device, nvParams->pDesc, &build_info, usages))
+    {
+        ERR("Failed to convert inputs.\n");
+        memset(info, 0, sizeof(*info));
+        ns = NVAPI_ERROR;
+        goto cleanup;
+    }
+
+    memset(&size_info, 0, sizeof(size_info));
+    size_info.sType = VK_STRUCTURE_TYPE_MICROMAP_BUILD_SIZES_INFO_EXT;
+
+    VK_CALL(vkGetMicromapBuildSizesEXT(device->vk_device,
+            VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
+            &build_info, &size_info));
+
+    info->resultDataMaxSizeInBytes = size_info.micromapSize;
+    info->scratchDataSizeInBytes = size_info.buildScratchSize;
+
+    TRACE("ResultDataMaxSizeInBytes: %"PRIu64".\n", (uint64_t)info->resultDataMaxSizeInBytes);
+    TRACE("ScratchDataSizeInBytes: %"PRIu64".\n", (uint64_t)info->scratchDataSizeInBytes);
+
+cleanup:
+
+    if (usages_count > VKD3D_BUILD_INFO_STACK_COUNT)
+        vkd3d_free(usages);
 
     return ns;
 }

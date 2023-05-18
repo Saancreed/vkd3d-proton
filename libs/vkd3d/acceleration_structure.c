@@ -40,6 +40,22 @@ static VkBuildAccelerationStructureFlagsKHR d3d12_build_flags_to_vk(
     return vk_flags;
 }
 
+static VkBuildAccelerationStructureFlagsKHR nv_build_flags_to_vk(
+        NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS_EX flags)
+{
+    VkBuildAccelerationStructureFlagsKHR vk_flags = d3d12_build_flags_to_vk(
+        (D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS)flags);
+
+    if (flags & NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_OMM_UPDATE_EX)
+        vk_flags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_OPACITY_MICROMAP_UPDATE_EXT;
+    if (flags & NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_DISABLE_OMMS_EX)
+        vk_flags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_DISABLE_OPACITY_MICROMAPS_EXT;
+    if (flags & NVAPI_D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_OMM_OPACITY_STATES_UPDATE_EX)
+        vk_flags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_OPACITY_MICROMAP_DATA_UPDATE_EXT;
+
+    return vk_flags;
+}
+
 static VkGeometryFlagsKHR d3d12_geometry_flags_to_vk(D3D12_RAYTRACING_GEOMETRY_FLAGS flags)
 {
     VkGeometryFlagsKHR vk_flags = 0;
@@ -59,6 +75,15 @@ uint32_t vkd3d_acceleration_structure_get_geometry_count(
         return 1;
     else
         return desc->NumDescs;
+}
+
+uint32_t vkd3d_acceleration_structure_get_geometry_count_nv(
+        const NVAPI_D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS_EX *desc)
+{
+    if (desc->type == D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL)
+        return 1;
+    else
+        return desc->numDescs;
 }
 
 bool vkd3d_acceleration_structure_convert_inputs(const struct d3d12_device *device,
@@ -229,6 +254,274 @@ bool vkd3d_acceleration_structure_convert_inputs(const struct d3d12_device *devi
 
                 default:
                     FIXME("Unsupported geometry type %u.\n", geom_desc->Type);
+                    return false;
+            }
+
+            if (primitive_counts)
+                primitive_counts[i] = primitive_count;
+
+            if (range_infos)
+            {
+                range_infos[i].primitiveCount = primitive_count;
+                range_infos[i].firstVertex = 0;
+                range_infos[i].primitiveOffset = 0;
+                range_infos[i].transformOffset = 0;
+            }
+
+            RT_TRACE("  Primitive count %u.\n", primitive_count);
+        }
+    }
+
+    RT_TRACE("=====================\n");
+    return true;
+}
+
+bool vkd3d_acceleration_structure_convert_inputs_nv(struct d3d12_device *device,
+        const NVAPI_D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS_EX *desc,
+        VkAccelerationStructureBuildGeometryInfoKHR *build_info,
+        VkAccelerationStructureGeometryKHR *geometry_infos,
+        VkAccelerationStructureTrianglesOpacityMicromapEXT *omm_infos,
+        VkAccelerationStructureBuildRangeInfoKHR *range_infos,
+        uint32_t *primitive_counts)
+{
+    VkAccelerationStructureTrianglesOpacityMicromapEXT *opacity_micromap;
+    VkAccelerationStructureGeometryTrianglesDataKHR *triangles;
+    VkAccelerationStructureGeometryAabbsDataKHR *aabbs;
+    const NVAPI_D3D12_RAYTRACING_GEOMETRY_DESC_EX *geom_desc;
+    bool have_triangles, have_aabbs;
+    uint32_t primitive_count;
+    unsigned int i;
+
+    RT_TRACE("Converting inputs.\n");
+    RT_TRACE("=====================\n");
+
+    memset(build_info, 0, sizeof(*build_info));
+    build_info->sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
+
+    if (desc->type == D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL)
+    {
+        build_info->type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
+        RT_TRACE("Top level build.\n");
+    }
+    else
+    {
+        build_info->type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+        RT_TRACE("Bottom level build.\n");
+    }
+
+    build_info->flags = nv_build_flags_to_vk(desc->flags);
+
+    if (desc->flags & D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PERFORM_UPDATE)
+    {
+        RT_TRACE("BUILD_FLAG_PERFORM_UPDATE.\n");
+        build_info->mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR;
+    }
+    else
+        build_info->mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
+
+    if (desc->type == D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL)
+    {
+        memset(geometry_infos, 0, sizeof(*geometry_infos));
+        geometry_infos[0].sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
+        geometry_infos[0].geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR;
+        geometry_infos[0].geometry.instances.sType =
+                VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR;
+        geometry_infos[0].geometry.instances.arrayOfPointers =
+                desc->descsLayout == D3D12_ELEMENTS_LAYOUT_ARRAY_OF_POINTERS ? VK_TRUE : VK_FALSE;
+        geometry_infos[0].geometry.instances.data.deviceAddress = desc->instanceDescs;
+
+        if (primitive_counts)
+            primitive_counts[0] = desc->numDescs;
+
+        if (range_infos)
+        {
+            range_infos[0].primitiveCount = desc->numDescs;
+            range_infos[0].firstVertex = 0;
+            range_infos[0].primitiveOffset = 0;
+            range_infos[0].transformOffset = 0;
+        }
+
+        build_info->geometryCount = 1;
+        RT_TRACE("  ArrayOfPointers: %u.\n",
+                desc->descsLayout == D3D12_ELEMENTS_LAYOUT_ARRAY_OF_POINTERS ? 1 : 0);
+        RT_TRACE("  NumDescs: %u.\n", desc->numDescs);
+    }
+    else
+    {
+        have_triangles = false;
+        have_aabbs = false;
+
+        memset(geometry_infos, 0, sizeof(*geometry_infos) * desc->numDescs);
+        memset(omm_infos, 0, sizeof(*omm_infos) * desc->numDescs);
+
+        if (primitive_counts)
+            memset(primitive_counts, 0, sizeof(*primitive_counts) * desc->numDescs);
+
+        build_info->geometryCount = desc->numDescs;
+
+        for (i = 0; i < desc->numDescs; i++)
+        {
+            geometry_infos[i].sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
+            RT_TRACE(" Geom %u:\n", i);
+
+            if (desc->descsLayout == D3D12_ELEMENTS_LAYOUT_ARRAY_OF_POINTERS)
+            {
+                geom_desc = desc->ppGeometryDescs[i];
+                RT_TRACE("  ArrayOfPointers\n");
+            }
+            else
+            {
+                geom_desc = (const NVAPI_D3D12_RAYTRACING_GEOMETRY_DESC_EX *)(((const char *)desc->pGeometryDescs) + desc->geometryDescStrideInBytes * i);
+                RT_TRACE("  PointerToArray\n");
+            }
+
+            geometry_infos[i].flags = d3d12_geometry_flags_to_vk(geom_desc->flags);
+            RT_TRACE("  Flags = #%x\n", geom_desc->flags);
+
+            switch (geom_desc->type)
+            {
+                case D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES:
+                    if (have_aabbs)
+                    {
+                        ERR("Cannot mix and match geometry types in a BLAS.\n");
+                        return false;
+                    }
+                    have_triangles = true;
+
+                    geometry_infos[i].geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR;
+                    triangles = &geometry_infos[i].geometry.triangles;
+                    triangles->sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR;
+                    triangles->indexData.deviceAddress = geom_desc->triangles.IndexBuffer;
+                    if (geom_desc->triangles.IndexFormat != DXGI_FORMAT_UNKNOWN)
+                    {
+                        if (!geom_desc->triangles.IndexBuffer)
+                            WARN("Application is using IndexBuffer = 0 and IndexFormat != UNKNOWN. Likely application bug.\n");
+
+                        triangles->indexType =
+                                geom_desc->triangles.IndexFormat == DXGI_FORMAT_R16_UINT ?
+                                        VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32;
+                        primitive_count = geom_desc->triangles.IndexCount / 3;
+                        RT_TRACE("  Indexed : Index count = %u (%u bits)\n",
+                                geom_desc->triangles.IndexCount,
+                                triangles->indexType == VK_INDEX_TYPE_UINT16 ? 16 : 32);
+                        RT_TRACE("  Vertex count: %u\n", geom_desc->triangles.VertexCount);
+                        RT_TRACE("  IBO VA: %"PRIx64".\n", geom_desc->triangles.IndexBuffer);
+                    }
+                    else
+                    {
+                        primitive_count = geom_desc->triangles.VertexCount / 3;
+                        triangles->indexType = VK_INDEX_TYPE_NONE_KHR;
+                        RT_TRACE("  Triangle list : Vertex count: %u\n", geom_desc->triangles.VertexCount);
+                    }
+
+                    triangles->maxVertex = max(1, geom_desc->triangles.VertexCount) - 1;
+                    triangles->vertexStride = geom_desc->triangles.VertexBuffer.StrideInBytes;
+                    triangles->vertexFormat = vkd3d_internal_get_vk_format(device, geom_desc->triangles.VertexFormat);
+                    triangles->vertexData.deviceAddress = geom_desc->triangles.VertexBuffer.StartAddress;
+                    triangles->transformData.deviceAddress = geom_desc->triangles.Transform3x4;
+
+                    RT_TRACE("  Transform3x4: %s\n", geom_desc->triangles.Transform3x4 ? "on" : "off");
+                    RT_TRACE("  Vertex format: %s\n", debug_dxgi_format(geom_desc->triangles.VertexFormat));
+                    RT_TRACE("  VBO VA: %"PRIx64"\n", geom_desc->triangles.VertexBuffer.StartAddress);
+                    RT_TRACE("  Vertex stride: %"PRIu64" bytes\n", geom_desc->triangles.VertexBuffer.StrideInBytes);
+                    break;
+
+                case D3D12_RAYTRACING_GEOMETRY_TYPE_PROCEDURAL_PRIMITIVE_AABBS:
+                    if (have_triangles)
+                    {
+                        ERR("Cannot mix and match geometry types in a BLAS.\n");
+                        return false;
+                    }
+                    have_aabbs = true;
+
+                    geometry_infos[i].geometryType = VK_GEOMETRY_TYPE_AABBS_KHR;
+                    aabbs = &geometry_infos[i].geometry.aabbs;
+                    aabbs->sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_AABBS_DATA_KHR;
+                    aabbs->stride = geom_desc->aabbs.AABBs.StrideInBytes;
+                    aabbs->data.deviceAddress = geom_desc->aabbs.AABBs.StartAddress;
+                    primitive_count = geom_desc->aabbs.AABBCount;
+                    RT_TRACE("  AABB stride: %"PRIu64" bytes\n", geom_desc->aabbs.AABBs.StrideInBytes);
+                    break;
+
+                case NVAPI_D3D12_RAYTRACING_GEOMETRY_TYPE_OMM_TRIANGLES_EX:
+                    if (have_aabbs)
+                    {
+                        ERR("Cannot mix and match geometry types in a BLAS.\n");
+                        return false;
+                    }
+                    have_triangles = true;
+
+                    geometry_infos[i].geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR;
+                    triangles = &geometry_infos[i].geometry.triangles;
+                    triangles->sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR;
+                    triangles->indexData.deviceAddress = geom_desc->ommTriangles.triangles.IndexBuffer;
+                    if (geom_desc->ommTriangles.triangles.IndexFormat != DXGI_FORMAT_UNKNOWN)
+                    {
+                        if (!geom_desc->ommTriangles.triangles.IndexBuffer)
+                            WARN("Application is using IndexBuffer = 0 and IndexFormat != UNKNOWN. Likely application bug.\n");
+
+                        triangles->indexType =
+                                geom_desc->ommTriangles.triangles.IndexFormat == DXGI_FORMAT_R16_UINT ?
+                                        VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32;
+                        primitive_count = geom_desc->ommTriangles.triangles.IndexCount / 3;
+                        RT_TRACE("  Indexed : Index count = %u (%u bits)\n",
+                                geom_desc->ommTriangles.triangles.IndexCount,
+                                triangles->indexType == VK_INDEX_TYPE_UINT16 ? 16 : 32);
+                        RT_TRACE("  Vertex count: %u\n", geom_desc->ommTriangles.triangles.VertexCount);
+                        RT_TRACE("  IBO VA: %"PRIx64".\n", geom_desc->ommTriangles.triangles.IndexBuffer);
+                    }
+                    else
+                    {
+                        primitive_count = geom_desc->ommTriangles.triangles.VertexCount / 3;
+                        triangles->indexType = VK_INDEX_TYPE_NONE_KHR;
+                        RT_TRACE("  Triangle list : Vertex count: %u\n", geom_desc->ommTriangles.triangles.VertexCount);
+                    }
+
+                    triangles->maxVertex = max(1, geom_desc->ommTriangles.triangles.VertexCount) - 1;
+                    triangles->vertexStride = geom_desc->ommTriangles.triangles.VertexBuffer.StrideInBytes;
+                    triangles->vertexFormat = vkd3d_internal_get_vk_format(device, geom_desc->ommTriangles.triangles.VertexFormat);
+                    triangles->vertexData.deviceAddress = geom_desc->ommTriangles.triangles.VertexBuffer.StartAddress;
+                    triangles->transformData.deviceAddress = geom_desc->ommTriangles.triangles.Transform3x4;
+
+                    RT_TRACE("  Transform3x4: %s\n", geom_desc->ommTriangles.triangles.Transform3x4 ? "on" : "off");
+                    RT_TRACE("  Vertex format: %s\n", debug_dxgi_format(geom_desc->ommTriangles.triangles.VertexFormat));
+                    RT_TRACE("  VBO VA: %"PRIx64"\n", geom_desc->ommTriangles.triangles.VertexBuffer.StartAddress);
+                    RT_TRACE("  Vertex stride: %"PRIu64" bytes\n", geom_desc->ommTriangles.triangles.VertexBuffer.StrideInBytes);
+
+                    triangles->pNext = opacity_micromap = &omm_infos[i];
+                    opacity_micromap->sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_TRIANGLES_OPACITY_MICROMAP_EXT;
+                    opacity_micromap->pNext = NULL;
+                    opacity_micromap->indexType =
+                                geom_desc->ommTriangles.ommAttachment.opacityMicromapIndexFormat == DXGI_FORMAT_R16_UINT ?
+                                        VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32;
+                    opacity_micromap->indexBuffer.deviceAddress = geom_desc->ommTriangles.ommAttachment.opacityMicromapIndexBuffer.StartAddress;
+                    opacity_micromap->indexStride = geom_desc->ommTriangles.ommAttachment.opacityMicromapIndexBuffer.StrideInBytes;
+                    opacity_micromap->baseTriangle = geom_desc->ommTriangles.ommAttachment.opacityMicromapBaseLocation;
+
+                    if (geom_desc->ommTriangles.ommAttachment.numOMMUsageCounts && geom_desc->ommTriangles.ommAttachment.pOMMUsageCounts)
+                    {
+                        STATIC_ASSERT(sizeof(VkMicromapUsageEXT) == sizeof(NVAPI_D3D12_RAYTRACING_OPACITY_MICROMAP_USAGE_COUNT));
+                        STATIC_ASSERT(offsetof(VkMicromapUsageEXT, count) == offsetof(NVAPI_D3D12_RAYTRACING_OPACITY_MICROMAP_USAGE_COUNT, count));
+                        STATIC_ASSERT(offsetof(VkMicromapUsageEXT, subdivisionLevel) == offsetof(NVAPI_D3D12_RAYTRACING_OPACITY_MICROMAP_USAGE_COUNT, subdivisionLevel));
+                        STATIC_ASSERT(offsetof(VkMicromapUsageEXT, format) == offsetof(NVAPI_D3D12_RAYTRACING_OPACITY_MICROMAP_USAGE_COUNT, format));
+                        STATIC_ASSERT(sizeof(uint32_t) == sizeof(NVAPI_D3D12_RAYTRACING_OPACITY_MICROMAP_FORMAT));
+                        opacity_micromap->pUsageCounts = (const void *)geom_desc->ommTriangles.ommAttachment.pOMMUsageCounts;
+                        opacity_micromap->usageCountsCount = geom_desc->ommTriangles.ommAttachment.numOMMUsageCounts;
+                    }
+
+                    if (geom_desc->ommTriangles.ommAttachment.opacityMicromapArray)
+                        opacity_micromap->micromap = vkd3d_va_map_place_opacity_micromap(&device->memory_allocator.va_map, device, geom_desc->ommTriangles.ommAttachment.opacityMicromapArray);
+
+                    RT_TRACE("  OMM Index type: %s\n", debug_dxgi_format(geom_desc->ommTriangles.ommAttachment.opacityMicromapIndexFormat));
+                    RT_TRACE("  OMM IBO VA: %"PRIx64"\n", geom_desc->ommTriangles.ommAttachment.opacityMicromapIndexBuffer.StartAddress);
+                    RT_TRACE("  OMM Index stride: %"PRIu64" bytes\n", geom_desc->ommTriangles.ommAttachment.opacityMicromapIndexBuffer.StrideInBytes);
+                    RT_TRACE("  OMM Base: %u\n", geom_desc->ommTriangles.ommAttachment.opacityMicromapBaseLocation);
+                    RT_TRACE("  OMM Usage counts: %u\n", geom_desc->ommTriangles.ommAttachment.numOMMUsageCounts);
+                    RT_TRACE("  OMM Micromap VA: %"PRIx64"\n", geom_desc->ommTriangles.ommAttachment.opacityMicromapArray);
+                    break;
+
+                default:
+                    FIXME("Unsupported geometry type %u.\n", geom_desc->type);
                     return false;
             }
 

@@ -131,7 +131,7 @@ static const struct vkd3d_optional_extension_info optional_device_extensions[] =
     VK_EXTENSION_COND(EXT_DEVICE_ADDRESS_BINDING_REPORT, EXT_device_address_binding_report, VKD3D_CONFIG_FLAG_FAULT),
     VK_EXTENSION(EXT_DEPTH_BIAS_CONTROL, EXT_depth_bias_control),
     VK_EXTENSION(EXT_ZERO_INITIALIZE_DEVICE_MEMORY, EXT_zero_initialize_device_memory),
-    VK_EXTENSION_COND(EXT_OPACITY_MICROMAP, EXT_opacity_micromap, VKD3D_CONFIG_FLAG_DXR_1_2),
+    VK_EXTENSION_DISABLE_COND(EXT_OPACITY_MICROMAP, EXT_opacity_micromap, VKD3D_CONFIG_FLAG_NO_DXR),
     VK_EXTENSION(EXT_SHADER_FLOAT8, EXT_shader_float8),
     VK_EXTENSION_COND(EXT_DESCRIPTOR_HEAP, EXT_descriptor_heap, VKD3D_CONFIG_FLAG_DESCRIPTOR_HEAP),
     /* AMD extensions */
@@ -9409,7 +9409,8 @@ static D3D12_RAYTRACING_TIER d3d12_device_determine_ray_tracing_tier(struct d3d1
         }
     }
 
-    if (tier == D3D12_RAYTRACING_TIER_1_1 && info->opacity_micromap_features.micromap)
+    if (tier == D3D12_RAYTRACING_TIER_1_1 && info->opacity_micromap_features.micromap &&
+            vkd3d_config_flags & VKD3D_CONFIG_FLAG_DXR_1_2)
     {
         INFO("DXR 1.2 support enabled.\n");
         tier = D3D12_RAYTRACING_TIER_1_2;

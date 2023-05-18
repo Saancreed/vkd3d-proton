@@ -40,3 +40,17 @@ interface ID3D12GraphicsCommandListExt1 : ID3D12GraphicsCommandListExt
 {
    HRESULT LaunchCubinShaderEx(D3D12_CUBIN_DATA_HANDLE *handle, UINT32 block_x, UINT32 block_y, UINT32 block_z, UINT32 smem_size, const void *params, UINT32 param_size, const void *raw_params, UINT32 raw_params_count);
 }
+
+[
+    uuid(d53b0028-afb4-4b65-a4f1-7b0daaa65b50),
+    object,
+    local,
+    pointer_default(unique)
+]
+interface ID3D12GraphicsCommandListExt2 : ID3D12GraphicsCommandListExt1
+{
+   HRESULT BuildRaytracingAccelerationStructureEx(const void *params);
+   HRESULT BuildRaytracingOpacityMicromapArray(void *params);
+   HRESULT RelocateRaytracingOpacityMicromapArray(const void *params);
+   HRESULT EmitRaytracingOpacityMicromapArrayPostbuildInfo(const void *params);
+}

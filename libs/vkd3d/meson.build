@@ -75,6 +75,7 @@ vkd3d_src = [
   'vkd3d_main.c',
   'raytracing_pipeline.c',
   'acceleration_structure.c',
+  'opacity_micromap.c',
   'swapchain.c',
   'queue_timeline.c',
   'address_binding_tracker.c'

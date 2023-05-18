@@ -5738,6 +5738,29 @@ void vkd3d_acceleration_structure_copy(
         D3D12_GPU_VIRTUAL_ADDRESS dst, D3D12_GPU_VIRTUAL_ADDRESS src,
         D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE mode);
 
+/* Opacity micromap helpers. */
+struct vkd3d_opacity_micromap_build_info
+{
+    VkMicromapUsageEXT usages_stack[VKD3D_BUILD_INFO_STACK_COUNT];
+    VkMicromapBuildInfoEXT build_info;
+    VkMicromapUsageEXT *usages;
+};
+
+void vkd3d_opacity_micromap_build_info_cleanup(
+        struct vkd3d_opacity_micromap_build_info *info);
+bool vkd3d_opacity_micromap_convert_inputs_nv(const struct d3d12_device *device,
+        struct vkd3d_opacity_micromap_build_info *info,
+        const NVAPI_D3D12_BUILD_RAYTRACING_OPACITY_MICROMAP_ARRAY_INPUTS *desc);
+void vkd3d_opacity_micromap_emit_postbuild_info_nv(
+        struct d3d12_command_list *list,
+        const NVAPI_D3D12_RAYTRACING_OPACITY_MICROMAP_ARRAY_POSTBUILD_INFO_DESC *desc,
+        uint32_t count,
+        const D3D12_GPU_VIRTUAL_ADDRESS *addresses);
+void vkd3d_opacity_micromap_emit_immediate_postbuild_info_nv(
+        struct d3d12_command_list *list, uint32_t count,
+        const NVAPI_D3D12_RAYTRACING_OPACITY_MICROMAP_ARRAY_POSTBUILD_INFO_DESC *desc,
+        VkMicromapEXT vk_opacity_micromap);
+
 typedef enum D3D11_USAGE
 {
     D3D11_USAGE_DEFAULT,

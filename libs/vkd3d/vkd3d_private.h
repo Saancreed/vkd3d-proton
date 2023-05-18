@@ -4877,6 +4877,8 @@ struct d3d12_device
 
     struct vkd3d_device_swapchain_info swapchain_info;
     struct vkd3d_device_frame_markers frame_markers;
+
+    VkPipelineCreateFlags global_ray_tracing_pipeline_create_flags;
 };
 
 HRESULT d3d12_device_create(struct vkd3d_instance *instance,

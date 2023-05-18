@@ -8925,6 +8925,8 @@ static HRESULT d3d12_device_init(struct d3d12_device *device,
         vkd3d_renderdoc_begin_capture(device->vkd3d_instance->vk_instance);
 #endif
 
+    device->global_ray_tracing_pipeline_create_flags = 0;
+
     return S_OK;
 
 out_cleanup_descriptor_qa_global_info:

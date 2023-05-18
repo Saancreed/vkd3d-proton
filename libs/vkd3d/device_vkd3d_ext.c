@@ -247,6 +247,40 @@ static HRESULT STDMETHODCALLTYPE d3d12_device_vkd3d_ext_GetVulkanQueueInfoEx(d3d
     return S_OK;
 }
 
+static HRESULT STDMETHODCALLTYPE d3d12_device_vkd3d_ext_SetCreatePipelineStateOptions(d3d12_device_vkd3d_ext_iface *iface,
+        const void *params)
+{
+    const NVAPI_D3D12_SET_CREATE_PIPELINE_STATE_OPTIONS_PARAMS *nvParams = params;
+    struct d3d12_device *device = d3d12_device_from_ID3D12DeviceExt(iface);
+
+    TRACE("iface %p, params %p.\n", iface, params);
+
+    if (!nvParams)
+        return NVAPI_INVALID_ARGUMENT;
+
+    if (nvParams->version != NVAPI_D3D12_SET_CREATE_PIPELINE_STATE_OPTIONS_PARAMS_VER1)
+        return NVAPI_INCOMPATIBLE_STRUCT_VERSION;
+
+    if (nvParams->flags & NVAPI_D3D12_PIPELINE_CREATION_STATE_FLAGS_ENABLE_OMM_SUPPORT)
+    {
+        if (!device->device_info.opacity_micromap_features.micromap)
+        {
+            ERR("Opacity micromap is not supported. Calling this is invalid.\n");
+            return NVAPI_NOT_SUPPORTED;
+        }
+
+        device->global_ray_tracing_pipeline_create_flags |= VK_PIPELINE_CREATE_RAY_TRACING_OPACITY_MICROMAP_BIT_EXT;
+    }
+    else
+    {
+        device->global_ray_tracing_pipeline_create_flags &= ~VK_PIPELINE_CREATE_RAY_TRACING_OPACITY_MICROMAP_BIT_EXT;
+    }
+
+    TRACE("flags #%x.\n", device->global_ray_tracing_pipeline_create_flags);
+
+    return NVAPI_OK;
+}
+
 CONST_VTBL struct ID3D12DeviceExt1Vtbl d3d12_device_vkd3d_ext_vtbl =
 {
     /* IUnknown methods */

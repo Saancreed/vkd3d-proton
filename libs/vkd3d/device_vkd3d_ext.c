@@ -392,6 +392,62 @@ cleanup:
     return ns;
 }
 
+static HRESULT STDMETHODCALLTYPE d3d12_device_vkd3d_ext_GetRaytracingOpacityMicromapArrayPrebuildInfo(d3d12_device_vkd3d_ext_iface *iface,
+        void *params)
+{
+    NVAPI_GET_RAYTRACING_OPACITY_MICROMAP_ARRAY_PREBUILD_INFO_PARAMS *nvParams = params;
+    struct d3d12_device *device = d3d12_device_from_ID3D12DeviceExt(iface);
+    NVAPI_D3D12_RAYTRACING_OPACITY_MICROMAP_ARRAY_PREBUILD_INFO *info;
+    const struct vkd3d_vk_device_procs *vk_procs = &device->vk_procs;
+    struct vkd3d_opacity_micromap_build_info build_info;
+    VkMicromapBuildSizesInfoEXT size_info;
+
+    TRACE("iface %p, params %p.\n", iface, params);
+
+    if (!nvParams)
+        return NVAPI_INVALID_ARGUMENT;
+
+    if (nvParams->version != NVAPI_GET_RAYTRACING_OPACITY_MICROMAP_ARRAY_PREBUILD_INFO_PARAMS_VER1)
+        return NVAPI_INCOMPATIBLE_STRUCT_VERSION;
+
+    if (!nvParams->pDesc || !nvParams->pInfo)
+        return NVAPI_INVALID_ARGUMENT;
+
+    info = nvParams->pInfo;
+
+    if (!device->device_info.opacity_micromap_features.micromap)
+    {
+        ERR("Opacity micromap is not supported. Calling this is invalid.\n");
+        memset(info, 0, sizeof(*info));
+        return NVAPI_NOT_SUPPORTED;
+    }
+
+    if (!vkd3d_opacity_micromap_convert_inputs_nv(device, &build_info, nvParams->pDesc))
+    {
+        ERR("Failed to convert inputs.\n");
+        memset(info, 0, sizeof(*info));
+        return NVAPI_ERROR;
+    }
+
+    memset(&size_info, 0, sizeof(size_info));
+    size_info.sType = VK_STRUCTURE_TYPE_MICROMAP_BUILD_SIZES_INFO_EXT;
+
+    VK_CALL(vkGetMicromapBuildSizesEXT(device->vk_device,
+            VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
+            &build_info.build_info, &size_info));
+
+    vkd3d_opacity_micromap_build_info_cleanup(&build_info);
+
+    info->resultDataMaxSizeInBytes = size_info.micromapSize;
+    info->scratchDataSizeInBytes = size_info.buildScratchSize;
+
+    TRACE("ResultDataMaxSizeInBytes: %"PRIu64".\n", (uint64_t)info->resultDataMaxSizeInBytes);
+    TRACE("ScratchDatSizeInBytes: %"PRIu64".\n", (uint64_t)info->scratchDataSizeInBytes);
+    TRACE("Micromap %s discardable.\n", size_info.discardable ? "is" : "is not");
+
+    return NVAPI_OK;
+}
+
 CONST_VTBL struct ID3D12DeviceExt1Vtbl d3d12_device_vkd3d_ext_vtbl =
 {
     /* IUnknown methods */

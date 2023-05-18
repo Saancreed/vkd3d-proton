@@ -4883,6 +4883,13 @@ static void vk_access_and_stage_flags_from_d3d12_resource_state(const struct d3d
                     *stages |= VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
                     *access |= VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR |
                             VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
+
+                    if (device->device_info.opacity_micromap_features.micromap)
+                    {
+                        *stages |= VK_PIPELINE_STAGE_2_MICROMAP_BUILD_BIT_EXT;
+                        *access |= VK_ACCESS_2_MICROMAP_READ_BIT_EXT |
+                                VK_ACCESS_2_MICROMAP_WRITE_BIT_EXT;
+                    }
                 }
                 break;
 
@@ -4894,6 +4901,9 @@ static void vk_access_and_stage_flags_from_d3d12_resource_state(const struct d3d
                             VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR;
                     *access |= VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR |
                             VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR;
+
+                    if (device->device_info.opacity_micromap_features.micromap)
+                        *access |= VK_ACCESS_2_MICROMAP_READ_BIT_EXT;
                 }
                 break;
 
@@ -4920,6 +4930,10 @@ static void vk_access_and_stage_flags_from_d3d12_resource_state(const struct d3d
                     /* Vertex / index / transform buffer inputs are NON_PIXEL_SHADER_RESOURCES in DXR.
                      * They access SHADER_READ_BIT in Vulkan, so just need to add the stage. */
                     *stages |= VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
+
+                    if (device->device_info.opacity_micromap_features.micromap)
+                        *stages |= VK_PIPELINE_STAGE_2_MICROMAP_BUILD_BIT_EXT;
+
                 }
                 break;
 

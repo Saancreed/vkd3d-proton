@@ -448,7 +448,7 @@ static HRESULT STDMETHODCALLTYPE d3d12_device_vkd3d_ext_GetRaytracingOpacityMicr
     return NVAPI_OK;
 }
 
-CONST_VTBL struct ID3D12DeviceExt1Vtbl d3d12_device_vkd3d_ext_vtbl =
+CONST_VTBL struct ID3D12DeviceExt2Vtbl d3d12_device_vkd3d_ext_vtbl =
 {
     /* IUnknown methods */
     d3d12_device_vkd3d_ext_QueryInterface,
@@ -467,6 +467,12 @@ CONST_VTBL struct ID3D12DeviceExt1Vtbl d3d12_device_vkd3d_ext_vtbl =
     /* ID3D12DeviceExt1 methods */
     d3d12_device_vkd3d_ext_CreateResourceFromBorrowedHandle,
     d3d12_device_vkd3d_ext_GetVulkanQueueInfoEx,
+
+    /* ID3D12DeviceExt2 methods */
+    d3d12_device_vkd3d_ext_SetCreatePipelineStateOptions,
+    d3d12_device_vkd3d_ext_CheckDriverMatchingIdentifierEx,
+    d3d12_device_vkd3d_ext_GetRaytracingAccelerationStructurePrebuildInfoEx,
+    d3d12_device_vkd3d_ext_GetRaytracingOpacityMicromapArrayPrebuildInfo,
 };
 
 

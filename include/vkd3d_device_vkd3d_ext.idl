@@ -163,6 +163,20 @@ interface ID3D12DeviceExt4 : ID3D12DeviceExt3
     HRESULT SetNvShaderExtnSlotSpace(UINT32 uav_slot, UINT32 uav_space, BOOL local_thread);
 }
 
+[
+    uuid(a91b5617-a06a-4d6f-b437-03ebbef91416),
+    object,
+    local,
+    pointer_default(unique)
+]
+interface ID3D12DeviceExt5 : ID3D12DeviceExt4
+{
+    HRESULT SetCreatePipelineStateOptions(const void *params);
+    HRESULT CheckDriverMatchingIdentifierEx(void *params);
+    HRESULT GetRaytracingAccelerationStructurePrebuildInfoEx(void *params);
+    HRESULT GetRaytracingOpacityMicromapArrayPrebuildInfo(void *params);
+}
+
 /* 1:1 implementation of ffx_antilag2_dx12.h */
 struct AmdAntiLagAPIData_v1
 {

@@ -345,6 +345,51 @@ static HRESULT STDMETHODCALLTYPE d3d12_device_vkd3d_ext_GetCudaMergedTextureSamp
     return S_OK;
 }
 
+static HRESULT STDMETHODCALLTYPE d3d12_device_vkd3d_ext_GetCudaIndependentDescriptorObject(d3d12_device_vkd3d_ext_iface *iface,
+        D3D12_CPU_DESCRIPTOR_HANDLE uav_handle, D3D12_CUDA_INDEPENDENT_DESCRIPTOR_OBJECT_TYPE type, UINT64 *cuda_handle)
+{
+    VkImageViewHandleInfoNVX imageViewHandleInfo = { VK_STRUCTURE_TYPE_IMAGE_VIEW_HANDLE_INFO_NVX };
+    struct d3d12_device *device = d3d12_device_from_ID3D12DeviceExt(iface);
+    const struct vkd3d_vk_device_procs *vk_procs = &device->vk_procs;
+    struct d3d12_desc_split uav_desc;
+
+    TRACE("iface %p, uav_handle %zu, type %d, cuda_handle %p.\n",
+            iface, (size_t)uav_handle.ptr, type, cuda_handle);
+
+    if (!device->vk_info.supports_cubin_64bit || !vk_procs->vkGetImageViewHandle64NVX)
+        return E_NOTIMPL;
+
+    if (!cuda_handle)
+        return E_INVALIDARG;
+
+    uav_desc = d3d12_desc_decode_va(uav_handle.ptr);
+
+    /* If image flag is not set, descriptor cannot be used as a CudaSurface or CudaTexture */
+    if (!(uav_desc.view->info.flags & VKD3D_DESCRIPTOR_FLAG_IMAGE_VIEW))
+        return E_INVALIDARG;
+
+    imageViewHandleInfo.imageView = uav_desc.view->info.image.view->vk_image_view;
+
+    switch (type)
+    {
+        case D3D12_CUDA_INDEPENDENT_DESCRIPTOR_OBJECT_SURFACE:
+            imageViewHandleInfo.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+            break;
+        case D3D12_CUDA_INDEPENDENT_DESCRIPTOR_OBJECT_TEXTURE:
+            FIXME("TEXTURE object type not supported.\n");
+            return E_FAIL;
+        case D3D12_CUDA_INDEPENDENT_DESCRIPTOR_OBJECT_SAMPLER:
+            imageViewHandleInfo.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+            break;
+        default:
+            ERR("Unsupported object type %d\n", type);
+            return E_INVALIDARG;
+    }
+
+    *cuda_handle = VK_CALL(vkGetImageViewHandle64NVX(device->vk_device, &imageViewHandleInfo));
+    return S_OK;
+}
+
 CONST_VTBL struct ID3D12DeviceExt1Vtbl d3d12_device_vkd3d_ext_vtbl =
 {
     /* IUnknown methods */

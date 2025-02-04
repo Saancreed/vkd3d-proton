@@ -304,6 +304,47 @@ static HRESULT STDMETHODCALLTYPE d3d12_device_vkd3d_ext_CreateCubinComputeShader
             shader_name, true, flags, out_handle);
 }
 
+static HRESULT STDMETHODCALLTYPE d3d12_device_vkd3d_ext_GetCudaMergedTextureSamplerObject(d3d12_device_vkd3d_ext_iface *iface,
+        D3D12_CPU_DESCRIPTOR_HANDLE srv_handle, D3D12_CPU_DESCRIPTOR_HANDLE sampler_handle, UINT64 *cuda_texture_handle)
+{
+    VkImageViewHandleInfoNVX imageViewHandleInfo = { VK_STRUCTURE_TYPE_IMAGE_VIEW_HANDLE_INFO_NVX };
+    struct d3d12_device *device = d3d12_device_from_ID3D12DeviceExt(iface);
+    const struct vkd3d_vk_device_procs *vk_procs = &device->vk_procs;
+    struct d3d12_desc_split sampler_desc;
+    struct d3d12_desc_split srv_desc;
+
+    TRACE("iface %p, srv_handle %zu, sampler_handle %zu, cuda_texture_handle %p.\n",
+            iface, (size_t)srv_handle.ptr, (size_t)sampler_handle.ptr, cuda_texture_handle);
+
+    if (!device->vk_info.supports_cubin_64bit || !vk_procs->vkGetImageViewHandle64NVX)
+        return E_NOTIMPL;
+
+    if (!cuda_texture_handle)
+        return E_INVALIDARG;
+
+    srv_desc = d3d12_desc_decode_va(srv_handle.ptr);
+
+    /* If image flag is not set, descriptor cannot be used as a CudaTexture */
+    if (!(srv_desc.view->info.flags & VKD3D_DESCRIPTOR_FLAG_IMAGE_VIEW))
+        return E_INVALIDARG;
+
+    imageViewHandleInfo.imageView = srv_desc.view->info.image.view->vk_image_view;
+
+    if (sampler_handle.ptr)
+    {
+        sampler_desc = d3d12_desc_decode_va(sampler_handle.ptr);
+        imageViewHandleInfo.sampler = sampler_desc.view->info.image.view->vk_sampler;
+        imageViewHandleInfo.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    }
+    else
+    {
+        imageViewHandleInfo.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    }
+
+    *cuda_texture_handle = VK_CALL(vkGetImageViewHandle64NVX(device->vk_device, &imageViewHandleInfo));
+    return S_OK;
+}
+
 CONST_VTBL struct ID3D12DeviceExt1Vtbl d3d12_device_vkd3d_ext_vtbl =
 {
     /* IUnknown methods */

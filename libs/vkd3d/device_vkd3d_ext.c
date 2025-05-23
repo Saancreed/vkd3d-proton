@@ -164,6 +164,12 @@ static BOOL STDMETHODCALLTYPE d3d12_device_vkd3d_ext_GetExtensionSupport(d3d12_d
         case D3D12_VK_NV_OPTICAL_FLOW:
             ret_val = device->vk_info.NV_optical_flow;
             break;
+        case D3D12_VK_NV_CLUSTER_ACCELERATION_STRUCTURE:
+            ret_val = device->vk_info.NV_cluster_acceleration_structure;
+            break;
+        case D3D12_VK_NV_PARTITIONED_ACCELERATION_STRUCTURE:
+            ret_val = device->vk_info.NV_partitioned_acceleration_structure;
+            break;
         default:
             WARN("Invalid extension %x.\n", extension);
     }

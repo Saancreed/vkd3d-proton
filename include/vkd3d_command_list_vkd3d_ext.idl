@@ -54,3 +54,15 @@ interface ID3D12GraphicsCommandListExt2 : ID3D12GraphicsCommandListExt1
    HRESULT RelocateRaytracingOpacityMicromapArray(const void *params);
    HRESULT EmitRaytracingOpacityMicromapArrayPostbuildInfo(const void *params);
 }
+
+[
+    uuid(d53b0028-afb4-4b65-a4f1-7b0daaa65b51),
+    object,
+    local,
+    pointer_default(unique)
+]
+interface ID3D12GraphicsCommandListExt3 : ID3D12GraphicsCommandListExt2
+{
+   HRESULT RaytracingExecuteMultiIndirectClusterOperation(const void *params);
+   HRESULT BuildRaytracingPartitionedTlasIndirect(const void *params);
+}

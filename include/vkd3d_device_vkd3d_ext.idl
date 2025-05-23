@@ -177,6 +177,18 @@ interface ID3D12DeviceExt5 : ID3D12DeviceExt4
     HRESULT GetRaytracingOpacityMicromapArrayPrebuildInfo(void *params);
 }
 
+[
+    uuid(a91b5617-a06a-4d6f-b437-03ebbef91417),
+    object,
+    local,
+    pointer_default(unique)
+]
+interface ID3D12DeviceExt6 : ID3D12DeviceExt5
+{
+    HRESULT GetRaytracingMultiIndirectClusterOperationRequirementsInfo(const void *params);
+    HRESULT GetRaytracingPartitionedTlasIndirectPrebuildInfo(const void *params);
+}
+
 /* 1:1 implementation of ffx_antilag2_dx12.h */
 struct AmdAntiLagAPIData_v1
 {

@@ -440,10 +440,18 @@ static BOOL STDMETHODCALLTYPE d3d12_device_vkd3d_ext_SetCreatePipelineStateFlags
     struct d3d12_device *device = d3d12_device_from_ID3D12DeviceExt(iface);
     VKD3D_UNUSED VkPipelineCreateFlags ray_tracing_pipeline_create_flags;
     bool enable_opacity_micromap;
+    uint32_t enable_cluster_as;
 
     TRACE("iface %p, pipeline_state_flags %d.\n", iface, pipeline_state_flags);
 
     enable_opacity_micromap = (pipeline_state_flags & D3D12_VK_EXT_PIPELINE_CREATION_STATE_FLAGS_ENABLE_OMM_SUPPORT) != 0;
+    enable_cluster_as = (pipeline_state_flags & D3D12_VK_EXT_PIPELINE_CREATION_STATE_FLAGS_ENABLE_CLUSTER_SUPPORT) != 0;
+
+    if (enable_cluster_as && !device->device_info.cluster_acceleration_structure_features_nv.clusterAccelerationStructure)
+    {
+        ERR("Cluster acceleration structure is not supported.\n");
+        return FALSE;
+    }
 
     if (enable_opacity_micromap)
     {
@@ -473,7 +481,12 @@ static BOOL STDMETHODCALLTYPE d3d12_device_vkd3d_ext_SetCreatePipelineStateFlags
                 ~VK_PIPELINE_CREATE_RAY_TRACING_OPACITY_MICROMAP_BIT_KHR;
     }
 
-    TRACE("flags #%x.\n", ray_tracing_pipeline_create_flags);
+    vkd3d_atomic_uint32_store_explicit(
+        &device->vendor_hacks.allow_cluster_acceleration_structure,
+        enable_cluster_as,
+        vkd3d_memory_order_relaxed);
+
+    TRACE("flags #%x, cluster_as #%x.\n", ray_tracing_pipeline_create_flags, enable_cluster_as);
 
     return TRUE;
 }

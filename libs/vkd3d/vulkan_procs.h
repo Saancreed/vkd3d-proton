@@ -409,6 +409,14 @@ VK_DEVICE_EXT_PFN(vkSetLatencyMarkerNV)
 VK_DEVICE_EXT_PFN(vkGetLatencyTimingsNV)
 VK_DEVICE_EXT_PFN(vkQueueNotifyOutOfBandNV)
 
+/* VK_NV_cluster_acceleration_structure */
+VK_DEVICE_EXT_PFN(vkGetClusterAccelerationStructureBuildSizesNV)
+VK_DEVICE_EXT_PFN(vkCmdBuildClusterAccelerationStructureIndirectNV)
+
+/* VK_NV_partitioned_acceleration_structure */
+VK_DEVICE_EXT_PFN(vkGetPartitionedAccelerationStructuresBuildSizesNV)
+VK_DEVICE_EXT_PFN(vkCmdBuildPartitionedAccelerationStructuresNV)
+
 /* VK_KHR_cooperative_matrix */
 VK_INSTANCE_PFN(vkGetPhysicalDeviceCooperativeMatrixPropertiesKHR)
 

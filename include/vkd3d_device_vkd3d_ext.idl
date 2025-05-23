@@ -21,7 +21,8 @@ import "vkd3d_vk_includes.h";
 typedef enum D3D12_VK_EXT_PIPELINE_CREATION_STATE_FLAG
 {
     D3D12_VK_EXT_PIPELINE_CREATION_STATE_FLAGS_NONE = 0x0,
-    D3D12_VK_EXT_PIPELINE_CREATION_STATE_FLAGS_ENABLE_OMM_SUPPORT = 0x1
+    D3D12_VK_EXT_PIPELINE_CREATION_STATE_FLAGS_ENABLE_OMM_SUPPORT = 0x1,
+    D3D12_VK_EXT_PIPELINE_CREATION_STATE_FLAGS_ENABLE_CLUSTER_SUPPORT = 0x4,
 } D3D12_VK_EXT_PIPELINE_CREATION_STATE_FLAG;
 
 [
@@ -178,6 +179,18 @@ interface ID3D12DeviceExt4 : ID3D12DeviceExt3
 interface ID3D12DeviceExt5 : ID3D12DeviceExt4
 {
     BOOL SetCreatePipelineStateFlagsNVAPI(D3D12_VK_EXT_PIPELINE_CREATION_STATE_FLAG pipeline_state_flags);
+}
+
+[
+    uuid(e51323f6-3541-4ddf-894d-8a8c70e3e428),
+    object,
+    local,
+    pointer_default(unique)
+]
+interface ID3D12DeviceExt6 : ID3D12DeviceExt5
+{
+    HRESULT GetRaytracingMultiIndirectClusterOperationRequirementsInfo(const void *params);
+    HRESULT GetRaytracingPartitionedTlasIndirectPrebuildInfo(const void *params);
 }
 
 

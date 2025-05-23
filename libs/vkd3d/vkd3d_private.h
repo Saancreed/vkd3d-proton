@@ -201,6 +201,8 @@ struct vkd3d_vulkan_info
     bool AMD_shader_explicit_vertex_parameter;
     /* NV device extensions */
     bool NV_optical_flow;
+    bool NV_cluster_acceleration_structure;
+    bool NV_partitioned_acceleration_structure;
     bool NV_shader_sm_builtins;
     bool NVX_binary_import;
     bool NVX_image_view_handle;
@@ -5299,6 +5301,8 @@ struct vkd3d_physical_device_info
     VkPhysicalDeviceImageAlignmentControlPropertiesMESA image_alignment_control_properties;
     VkPhysicalDeviceDepthBiasControlFeaturesEXT depth_bias_control_features;
     VkPhysicalDeviceOpticalFlowFeaturesNV optical_flow_nv_features;
+    VkPhysicalDeviceClusterAccelerationStructureFeaturesNV cluster_acceleration_structure_features_nv;
+    VkPhysicalDevicePartitionedAccelerationStructureFeaturesNV partitioned_acceleration_structure_features_nv;
     VkPhysicalDeviceCooperativeMatrixFeaturesKHR cooperative_matrix_features;
     VkPhysicalDeviceZeroInitializeDeviceMemoryFeaturesEXT zero_initialize_device_memory_features;
     VkPhysicalDeviceOpacityMicromapFeaturesEXT opacity_micromap_features;

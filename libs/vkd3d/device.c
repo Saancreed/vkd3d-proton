@@ -143,6 +143,8 @@ static const struct vkd3d_optional_extension_info optional_device_extensions[] =
     VK_EXTENSION(AMD_SHADER_EXPLICIT_VERTEX_PARAMETER, AMD_shader_explicit_vertex_parameter),
     /* NV extensions */
     VK_EXTENSION(NV_OPTICAL_FLOW, NV_optical_flow),
+    VK_EXTENSION_DISABLE_COND(NV_CLUSTER_ACCELERATION_STRUCTURE, NV_cluster_acceleration_structure, VKD3D_CONFIG_FLAG_NO_DXR),
+    VK_EXTENSION_DISABLE_COND(NV_PARTITIONED_ACCELERATION_STRUCTURE, NV_partitioned_acceleration_structure, VKD3D_CONFIG_FLAG_NO_DXR),
     VK_EXTENSION(NV_SHADER_SM_BUILTINS, NV_shader_sm_builtins),
     VK_EXTENSION_DISABLE_COND(NVX_BINARY_IMPORT, NVX_binary_import, VKD3D_CONFIG_FLAG_NO_NVX),
     VK_EXTENSION_DISABLE_COND(NVX_IMAGE_VIEW_HANDLE, NVX_image_view_handle, VKD3D_CONFIG_FLAG_NO_NVX),
@@ -2452,6 +2454,18 @@ static void vkd3d_physical_device_info_init(struct vkd3d_physical_device_info *i
     {
         info->optical_flow_nv_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_OPTICAL_FLOW_FEATURES_NV;
         vk_prepend_struct(&info->features2, &info->optical_flow_nv_features);
+    }
+
+    if (vulkan_info->NV_cluster_acceleration_structure)
+    {
+        info->cluster_acceleration_structure_features_nv.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CLUSTER_ACCELERATION_STRUCTURE_FEATURES_NV;
+        vk_prepend_struct(&info->features2, &info->cluster_acceleration_structure_features_nv);
+    }
+
+    if (vulkan_info->NV_partitioned_acceleration_structure)
+    {
+        info->partitioned_acceleration_structure_features_nv.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PARTITIONED_ACCELERATION_STRUCTURE_FEATURES_NV;
+        vk_prepend_struct(&info->features2, &info->partitioned_acceleration_structure_features_nv);
     }
 
     if (vulkan_info->KHR_cooperative_matrix)

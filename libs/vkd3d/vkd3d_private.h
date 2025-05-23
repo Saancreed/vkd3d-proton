@@ -5873,6 +5873,10 @@ struct d3d12_device
          * force-on. The semantic is "this device has seen an OMM opt-in at some point, so
          * conservatively assume any RayQuery in any shader may need OMM consultation." */
         uint32_t force_ray_query_omm;
+
+        /* Kept here instead of with other global_ray_tracing_pipeline_create_flags
+         * because the NV extension doesn't use VkPipelineCreateFlags for cluster AS */
+        uint32_t allow_cluster_acceleration_structure;
     } vendor_hacks;
 
     bool independent_device;

@@ -1881,6 +1881,7 @@ static HRESULT d3d12_state_object_compile_pipeline_variant(struct d3d12_rt_state
         struct d3d12_rt_state_object_pipeline_data *data)
 {
     struct vkd3d_nv_shader_extn nv_shader_extn = d3d12_device_get_nv_shader_extn(object->device);
+    struct VkRayTracingPipelineClusterAccelerationStructureCreateInfoNV cluster_as_create_info;
     const struct vkd3d_vk_device_procs *vk_procs = &object->device->vk_procs;
     struct vkd3d_shader_interface_local_info shader_interface_local_info;
     VkRayTracingPipelineInterfaceCreateInfoKHR interface_create_info;
@@ -2537,6 +2538,14 @@ static HRESULT d3d12_state_object_compile_pipeline_variant(struct d3d12_rt_state
         pipeline_create_info.flags |= VK_PIPELINE_CREATE_RAY_TRACING_OPACITY_MICROMAP_BIT_EXT;
 
     pipeline_create_info.flags |= object->device->global_ray_tracing_pipeline_create_flags;
+
+    if (object->device->allow_cluster_acceleration_structure)
+    {
+        cluster_as_create_info.sType = VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CLUSTER_ACCELERATION_STRUCTURE_CREATE_INFO_NV;
+        cluster_as_create_info.pNext = NULL;
+        cluster_as_create_info.allowClusterAccelerationStructure = VK_TRUE;
+        pipeline_create_info.pNext = &cluster_as_create_info;
+    }
 
     library_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LIBRARY_CREATE_INFO_KHR;
     library_info.pNext = NULL;

@@ -747,6 +747,10 @@ static HRESULT STDMETHODCALLTYPE d3d12_device_vkd3d_ext_SetCreatePipelineStateOp
 {
     const NVAPI_D3D12_SET_CREATE_PIPELINE_STATE_OPTIONS_PARAMS *nvParams = params;
     struct d3d12_device *device = d3d12_device_from_ID3D12DeviceExt(iface);
+    static const NVAPI_D3D12_PIPELINE_CREATION_STATE_FLAGS supported =
+        NVAPI_D3D12_PIPELINE_CREATION_STATE_FLAGS_ENABLE_OMM_SUPPORT |
+        NVAPI_D3D12_PIPELINE_CREATION_STATE_FLAGS_ENABLE_CLUSTER_SUPPORT;
+    NVAPI_D3D12_PIPELINE_CREATION_STATE_FLAGS unsupported;
 
     TRACE("iface %p, params %p.\n", iface, params);
 
@@ -756,22 +760,36 @@ static HRESULT STDMETHODCALLTYPE d3d12_device_vkd3d_ext_SetCreatePipelineStateOp
     if (nvParams->version != NVAPI_D3D12_SET_CREATE_PIPELINE_STATE_OPTIONS_PARAMS_VER1)
         return NVAPI_INCOMPATIBLE_STRUCT_VERSION;
 
+    TRACE("flags #%x.\n", nvParams->flags);
+
+    unsupported = nvParams->flags & ~supported;
+
+    if (unsupported)
+    {
+        ERR("Some flags are not supported (#%x). Calling this is invalid.\n", unsupported);
+        return NVAPI_NOT_SUPPORTED;
+    }
+
+    if (nvParams->flags & NVAPI_D3D12_PIPELINE_CREATION_STATE_FLAGS_ENABLE_OMM_SUPPORT &&
+            !device->device_info.opacity_micromap_features.micromap)
+    {
+        ERR("Opacity micromap is not supported. Calling this is invalid.\n");
+        return NVAPI_NOT_SUPPORTED;
+    }
+
+    if (nvParams->flags & NVAPI_D3D12_PIPELINE_CREATION_STATE_FLAGS_ENABLE_CLUSTER_SUPPORT &&
+            !device->device_info.cluster_acceleration_structure_features_nv.clusterAccelerationStructure)
+    {
+        ERR("Cluster acceleration structure is not supported. Calling this is invalid.\n");
+        return NVAPI_NOT_SUPPORTED;
+    }
+
     if (nvParams->flags & NVAPI_D3D12_PIPELINE_CREATION_STATE_FLAGS_ENABLE_OMM_SUPPORT)
-    {
-        if (!device->device_info.opacity_micromap_features.micromap)
-        {
-            ERR("Opacity micromap is not supported. Calling this is invalid.\n");
-            return NVAPI_NOT_SUPPORTED;
-        }
-
         device->global_ray_tracing_pipeline_create_flags |= VK_PIPELINE_CREATE_RAY_TRACING_OPACITY_MICROMAP_BIT_EXT;
-    }
     else
-    {
         device->global_ray_tracing_pipeline_create_flags &= ~VK_PIPELINE_CREATE_RAY_TRACING_OPACITY_MICROMAP_BIT_EXT;
-    }
 
-    TRACE("flags #%x.\n", device->global_ray_tracing_pipeline_create_flags);
+    device->allow_cluster_acceleration_structure = nvParams->flags & NVAPI_D3D12_PIPELINE_CREATION_STATE_FLAGS_ENABLE_CLUSTER_SUPPORT;
 
     return NVAPI_OK;
 }

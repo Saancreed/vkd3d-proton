@@ -10825,6 +10825,7 @@ static HRESULT d3d12_device_init(struct d3d12_device *device,
     device->adapter_luid = create_info->adapter_luid;
     device->removed_reason = S_OK;
     device->global_ray_tracing_pipeline_create_flags = 0;
+    device->allow_cluster_acceleration_structure = false;
 
     device->vk_device = VK_NULL_HANDLE;
 

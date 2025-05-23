@@ -5750,6 +5750,7 @@ struct d3d12_device
     D3DKMT_HANDLE kmt_local;
 
     VkPipelineCreateFlags global_ray_tracing_pipeline_create_flags;
+    bool allow_cluster_acceleration_structure;
 
     struct vkd3d_private_store private_store;
     struct d3d_destruction_notifier destruction_notifier;

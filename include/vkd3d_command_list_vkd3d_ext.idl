@@ -51,3 +51,15 @@ interface ID3D12GraphicsCommandListExt2 : ID3D12GraphicsCommandListExt1
 {
     BOOL VerifyOpacityMicromapArrayNVAPI(D3D12_GPU_VIRTUAL_ADDRESS opacity_micromap_array);
 }
+
+[
+    uuid(3bb8ce38-abef-484f-8f88-d5af90ac19fc),
+    object,
+    local,
+    pointer_default(unique)
+]
+interface ID3D12GraphicsCommandListExt3 : ID3D12GraphicsCommandListExt2
+{
+   HRESULT RaytracingExecuteMultiIndirectClusterOperation(const void *params);
+   HRESULT BuildRaytracingPartitionedTlasIndirect(const void *params);
+}

@@ -2963,7 +2963,7 @@ struct vkd3d_rendering_info
 };
 
 /* ID3D12CommandListExt */
-typedef ID3D12GraphicsCommandListExt2 d3d12_command_list_vkd3d_ext_iface;
+typedef ID3D12GraphicsCommandListExt3 d3d12_command_list_vkd3d_ext_iface;
 
 struct d3d12_rt_state_object;
 

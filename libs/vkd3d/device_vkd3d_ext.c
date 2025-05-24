@@ -904,7 +904,7 @@ static HRESULT STDMETHODCALLTYPE d3d12_device_vkd3d_ext_GetRaytracingPartitioned
     return NVAPI_OK;
 }
 
-CONST_VTBL struct ID3D12DeviceExt5Vtbl d3d12_device_vkd3d_ext_vtbl =
+CONST_VTBL struct ID3D12DeviceExt6Vtbl d3d12_device_vkd3d_ext_vtbl =
 {
     /* IUnknown methods */
     d3d12_device_vkd3d_ext_QueryInterface,
@@ -940,6 +940,10 @@ CONST_VTBL struct ID3D12DeviceExt5Vtbl d3d12_device_vkd3d_ext_vtbl =
 
     /* ID3D12DeviceExt5 methods */
     d3d12_device_vkd3d_ext_SetCreatePipelineStateFlagsNVAPI,
+
+    /* ID3D12DeviceExt6 methods */
+    d3d12_device_vkd3d_ext_GetRaytracingMultiIndirectClusterOperationRequirementsInfo,
+    d3d12_device_vkd3d_ext_GetRaytracingPartitionedTlasIndirectPrebuildInfo,
 };
 
 static inline struct d3d12_device *d3d12_device_from_ID3D12DXVKInteropDevice(d3d12_dxvk_interop_device_iface *iface)

@@ -6894,6 +6894,11 @@ bool vkd3d_acceleration_structure_convert_inputs_nv(struct d3d12_device *device,
         VkAccelerationStructureBuildRangeInfoKHR *range_infos,
         uint32_t *primitive_counts,
         bool *have_omm_usage_counts);
+bool vkd3d_acceleration_structure_convert_cluster_inputs_nv(const NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTS* input,
+        VkClusterAccelerationStructureInputInfoNV *input_info,
+        VkClusterAccelerationStructureMoveObjectsInputNV *move_objects,
+        VkClusterAccelerationStructureClustersBottomLevelInputNV *clusters_bottom_level,
+        VkClusterAccelerationStructureTriangleClusterInputNV *triangle_clusters);
 void vkd3d_acceleration_structure_emit_postbuild_info(
         struct d3d12_command_list *list,
         const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC *desc,

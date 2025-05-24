@@ -6959,6 +6959,9 @@ bool vkd3d_acceleration_structure_convert_cluster_inputs_nv(const NVAPI_D3D12_RA
         VkClusterAccelerationStructureMoveObjectsInputNV *move_objects,
         VkClusterAccelerationStructureClustersBottomLevelInputNV *clusters_bottom_level,
         VkClusterAccelerationStructureTriangleClusterInputNV *triangle_clusters);
+void vkd3d_acceleration_structure_convert_partitioned_inputs_nv(const NVAPI_D3D12_BUILD_RAYTRACING_PARTITIONED_TLAS_INDIRECT_INPUTS* input,
+        VkPartitionedAccelerationStructureInstancesInputNV *instances_input,
+        VkPartitionedAccelerationStructureFlagsNV *flags);
 void vkd3d_acceleration_structure_emit_postbuild_info(
         struct d3d12_command_list *list,
         const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC *desc,

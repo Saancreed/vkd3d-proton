@@ -364,6 +364,36 @@ bool vkd3d_acceleration_structure_convert_cluster_inputs_nv(const NVAPI_D3D12_RA
     return true;
 }
 
+void vkd3d_acceleration_structure_convert_partitioned_inputs_nv(const NVAPI_D3D12_BUILD_RAYTRACING_PARTITIONED_TLAS_INDIRECT_INPUTS* input,
+        VkPartitionedAccelerationStructureInstancesInputNV *instances_input,
+        VkPartitionedAccelerationStructureFlagsNV *flags)
+{
+    instances_input->sType = VK_STRUCTURE_TYPE_PARTITIONED_ACCELERATION_STRUCTURE_INSTANCES_INPUT_NV;
+    instances_input->flags = 0;
+
+    if (input->flags & NVAPI_D3D12_RAYTRACING_PARTITIONED_TLAS_FLAG_FAST_TRACE)
+        instances_input->flags |= VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+    if (input->flags & NVAPI_D3D12_RAYTRACING_PARTITIONED_TLAS_FLAG_FAST_BUILD)
+        instances_input->flags |= VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_BUILD_BIT_KHR;
+
+    if (input->flags & NVAPI_D3D12_RAYTRACING_PARTITIONED_TLAS_FLAG_ENABLE_PARTITION_TRANSLATION)
+    {
+        flags->sType = VK_STRUCTURE_TYPE_PARTITIONED_ACCELERATION_STRUCTURE_FLAGS_NV;
+        flags->pNext = NULL;
+        flags->enablePartitionTranslation = VK_TRUE;
+        instances_input->pNext = &flags;
+    }
+    else
+    {
+        instances_input->pNext = NULL;
+    }
+
+    instances_input->instanceCount = input->instanceCount;
+    instances_input->maxInstancePerPartitionCount = input->maxInstancePerPartitionCount;
+    instances_input->partitionCount = input->partitionCount;
+    instances_input->maxInstanceInGlobalPartitionCount = input->maxInstanceInGlobalPartitionCount;
+}
+
 static void vkd3d_acceleration_structure_end_barrier(struct d3d12_command_list *list)
 {
     /* We resolve the query in TRANSFER, but DXR expects UNORDERED_ACCESS. */

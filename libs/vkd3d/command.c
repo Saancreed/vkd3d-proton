@@ -21326,6 +21326,18 @@ void d3d12_command_list_flush_rtas_batch(struct d3d12_command_list *list)
     d3d12_command_list_clear_rtas_batch(list);
 }
 
+void d3d12_command_list_prepare_indirect_rtas_build(struct d3d12_command_list *list)
+{
+    d3d12_command_list_check_render_pass_validation(list, "Indirect RTAS build called within a render pass.\n", true);
+    d3d12_command_list_flush_dgc_batch(list);
+    d3d12_command_list_end_current_render_pass(list, true);
+    d3d12_command_list_check_end_of_command_list_cleanup(list);
+    d3d12_command_list_end_transfer_batch(list, true);
+    d3d12_command_list_flush_rtas_batch(list);
+
+    list->cmd.estimated_cost += VKD3D_COMMAND_COST_HIGH;
+}
+
 static void d3d12_command_list_flush_rtas_barrier(struct d3d12_command_list *list)
 {
     const struct vkd3d_vk_device_procs *vk_procs = &list->device->vk_procs;

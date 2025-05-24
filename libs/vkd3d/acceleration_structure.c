@@ -301,6 +301,69 @@ bool vkd3d_acceleration_structure_convert_inputs(struct d3d12_device *device,
     return true;
 }
 
+bool vkd3d_acceleration_structure_convert_cluster_inputs_nv(const NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTS* input,
+        VkClusterAccelerationStructureInputInfoNV *input_info,
+        VkClusterAccelerationStructureMoveObjectsInputNV *move_objects,
+        VkClusterAccelerationStructureClustersBottomLevelInputNV *clusters_bottom_level,
+        VkClusterAccelerationStructureTriangleClusterInputNV *triangle_clusters)
+{
+    input_info->sType = VK_STRUCTURE_TYPE_CLUSTER_ACCELERATION_STRUCTURE_INPUT_INFO_NV;
+    input_info->pNext = NULL;
+    input_info->maxAccelerationStructureCount = input->maxArgCount;
+    input_info->flags = 0;
+
+    if (input->flags & NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_FLAG_FAST_TRACE)
+        input_info->flags |= VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+    if (input->flags & NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_FLAG_FAST_BUILD)
+        input_info->flags |= VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_BUILD_BIT_KHR;
+
+    input_info->opType = (VkClusterAccelerationStructureOpTypeNV)input->type;
+    input_info->opMode = (VkClusterAccelerationStructureOpModeNV)input->mode;
+
+    switch (input->type)
+    {
+        case NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TYPE_MOVE_CLUSTER_OBJECT:
+            move_objects->sType = VK_STRUCTURE_TYPE_CLUSTER_ACCELERATION_STRUCTURE_MOVE_OBJECTS_INPUT_NV;
+            move_objects->pNext = NULL;
+            move_objects->type = (VkClusterAccelerationStructureTypeNV)input->movesDesc.type;
+            move_objects->maxMovedBytes = input->movesDesc.maxBytesMoved;
+            move_objects->noMoveOverlap = input->flags & NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_FLAG_NO_OVERLAP
+                ? VK_TRUE : VK_FALSE;
+            input_info->opInput.pMoveObjects = move_objects;
+            break;
+
+        case NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TYPE_BUILD_BLAS_FROM_CLAS:
+            clusters_bottom_level->sType = VK_STRUCTURE_TYPE_CLUSTER_ACCELERATION_STRUCTURE_CLUSTERS_BOTTOM_LEVEL_INPUT_NV;
+            clusters_bottom_level->pNext = NULL;
+            clusters_bottom_level->maxTotalClusterCount = input->clasDesc.maxTotalClasCount;
+            clusters_bottom_level->maxClusterCountPerAccelerationStructure = input->clasDesc.maxClasCountPerArg;
+            input_info->opInput.pClustersBottomLevel = clusters_bottom_level;
+            break;
+
+        case NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TYPE_BUILD_CLAS_FROM_TRIANGLES:
+        case NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TYPE_BUILD_CLUSTER_TEMPLATES_FROM_TRIANGLES:
+        case NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TYPE_INSTANTIATE_CLUSTER_TEMPLATES:
+            triangle_clusters->sType = VK_STRUCTURE_TYPE_CLUSTER_ACCELERATION_STRUCTURE_TRIANGLE_CLUSTER_INPUT_NV;
+            triangle_clusters->pNext = NULL;
+            triangle_clusters->vertexFormat = vkd3d_get_vk_format(input->trianglesDesc.vertexFormat);
+            triangle_clusters->maxGeometryIndexValue = input->trianglesDesc.maxGeometryIndexValue;
+            triangle_clusters->maxClusterUniqueGeometryCount = input->trianglesDesc.maxUniqueGeometryCountPerArg;
+            triangle_clusters->maxClusterTriangleCount = input->trianglesDesc.maxTriangleCountPerArg;
+            triangle_clusters->maxClusterVertexCount = input->trianglesDesc.maxVertexCountPerArg;
+            triangle_clusters->maxTotalTriangleCount = input->trianglesDesc.maxTotalTriangleCount;
+            triangle_clusters->maxTotalVertexCount = input->trianglesDesc.maxTotalVertexCount;
+            triangle_clusters->minPositionTruncateBitCount = input->trianglesDesc.minPositionTruncateBitCount;
+            input_info->opInput.pTriangleClusters = triangle_clusters;
+            break;
+
+        default:
+            ERR("Unsupported NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_TYPE %#x.\n", input->type);
+            return false;
+    }
+
+    return true;
+}
+
 static void vkd3d_acceleration_structure_end_barrier(struct d3d12_command_list *list)
 {
     /* We resolve the query in TRANSFER, but DXR expects UNORDERED_ACCESS. */

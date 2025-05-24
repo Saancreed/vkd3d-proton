@@ -6953,6 +6953,11 @@ void vkd3d_acceleration_structure_write_postbuild_info(
         VkAccelerationStructureKHR vk_acceleration_structure,
         VkDeviceAddress va,
         enum vkd3d_rtas_kind rtas_kind);
+bool vkd3d_acceleration_structure_convert_cluster_inputs_nv(const NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTS* input,
+        VkClusterAccelerationStructureInputInfoNV *input_info,
+        VkClusterAccelerationStructureMoveObjectsInputNV *move_objects,
+        VkClusterAccelerationStructureClustersBottomLevelInputNV *clusters_bottom_level,
+        VkClusterAccelerationStructureTriangleClusterInputNV *triangle_clusters);
 void vkd3d_acceleration_structure_emit_postbuild_info(
         struct d3d12_command_list *list,
         const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC *desc,

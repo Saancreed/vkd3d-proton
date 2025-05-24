@@ -3594,6 +3594,7 @@ void d3d12_command_list_invalidate_descriptor_heap(struct d3d12_command_list *li
 void d3d12_command_list_update_global_descriptor_heap(struct d3d12_command_list *list);
 void d3d12_command_list_flush_dgc_batch(struct d3d12_command_list *list);
 void d3d12_command_list_flush_rtas_batch(struct d3d12_command_list *list);
+void d3d12_command_list_prepare_indirect_rtas_build(struct d3d12_command_list *list);
 void d3d12_command_list_meta_push_data(struct d3d12_command_list *list,
         VkCommandBuffer vk_command_buffer,
         VkPipelineLayout vk_pipeline_layout, VkShaderStageFlags stages,

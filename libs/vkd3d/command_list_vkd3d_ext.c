@@ -622,6 +622,56 @@ static HRESULT STDMETHODCALLTYPE d3d12_command_list_vkd3d_ext_RaytracingExecuteM
     return NVAPI_OK;
 }
 
+static HRESULT STDMETHODCALLTYPE d3d12_command_list_vkd3d_ext_BuildRaytracingPartitionedTlasIndirect(d3d12_command_list_vkd3d_ext_iface *iface,
+        const void *params)
+{
+    struct d3d12_command_list *list = d3d12_command_list_from_ID3D12GraphicsCommandListExt(iface);
+    const NVAPI_BUILD_RAYTRACING_PARTITIONED_TLAS_INDIRECT_PARAMS *nvParams = params;
+    const NVAPI_D3D12_BUILD_RAYTRACING_PARTITIONED_TLAS_INDIRECT_DESC *desc;
+    const struct vkd3d_vk_device_procs *vk_procs = &list->device->vk_procs;
+    VkBuildPartitionedAccelerationStructureInfoNV build_info;
+    VkPartitionedAccelerationStructureFlagsNV flags;
+    TRACE("iface %p, params %p.\n", iface, params);
+
+    if (!nvParams)
+        return NVAPI_INVALID_ARGUMENT;
+
+    if (nvParams->version != NVAPI_BUILD_RAYTRACING_PARTITIONED_TLAS_INDIRECT_PARAMS_VER1)
+        return NVAPI_INCOMPATIBLE_STRUCT_VERSION;
+
+    if (!nvParams->pDesc)
+        return NVAPI_INVALID_ARGUMENT;
+
+    desc = nvParams->pDesc;
+
+    if (!list->device->device_info.partitioned_acceleration_structure_features_nv.partitionedAccelerationStructure)
+    {
+        ERR("Partitioned acceleration structure is not supported. Calling this is invalid.\n");
+        return NVAPI_NOT_SUPPORTED;
+    }
+
+    d3d12_command_list_check_render_pass_validation(list, "BuildRaytracingPartitionedTlasIndirect called within a render pass.\n", true);
+    d3d12_command_list_flush_dgc_batch(list);
+
+    vkd3d_acceleration_structure_convert_partitioned_inputs_nv(&desc->inputs, &build_info.input, &flags);
+
+    list->cmd.estimated_cost += VKD3D_COMMAND_COST_HIGH;
+
+    d3d12_command_list_flush_rtas_batch(list);
+
+    build_info.sType = VK_STRUCTURE_TYPE_BUILD_PARTITIONED_ACCELERATION_STRUCTURE_INFO_NV;
+    build_info.pNext = NULL;
+    build_info.srcAccelerationStructureData = desc->srcAccelerationStructureData;
+    build_info.dstAccelerationStructureData = desc->destAccelerationStructureData;
+    build_info.scratchData = desc->scratchAccelerationStructureData;
+    build_info.srcInfos = desc->indirectOps;
+    build_info.srcInfosCount = desc->indirectOpCount;
+
+    VK_CALL(vkCmdBuildPartitionedAccelerationStructuresNV(list->cmd.vk_command_buffer, &build_info));
+
+    return NVAPI_OK;
+}
+
 CONST_VTBL struct ID3D12GraphicsCommandListExt2Vtbl d3d12_command_list_vkd3d_ext_vtbl =
 {
     /* IUnknown methods */

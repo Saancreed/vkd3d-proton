@@ -802,6 +802,59 @@ static HRESULT STDMETHODCALLTYPE d3d12_device_vkd3d_ext_SetNvShaderExtnSlotSpace
     return S_OK;
 }
 
+static HRESULT STDMETHODCALLTYPE d3d12_device_vkd3d_ext_GetRaytracingMultiIndirectClusterOperationRequirementsInfo(d3d12_device_vkd3d_ext_iface *iface,
+        const void *params)
+{
+    const NVAPI_GET_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_REQUIREMENTS_INFO_PARAMS *nvParams = params;
+    struct d3d12_device *device = d3d12_device_from_ID3D12DeviceExt(iface);
+
+    NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_REQUIREMENTS_INFO *info;
+    VkClusterAccelerationStructureClustersBottomLevelInputNV clusters_bottom_level;
+    VkClusterAccelerationStructureTriangleClusterInputNV triangle_clusters;
+    const struct vkd3d_vk_device_procs *vk_procs = &device->vk_procs;
+    VkClusterAccelerationStructureMoveObjectsInputNV move_objects;
+    VkClusterAccelerationStructureInputInfoNV input_info;
+    VkAccelerationStructureBuildSizesInfoKHR size_info;
+
+    TRACE("iface %p, params %p.\n", iface, params);
+
+    if (!params)
+        return NVAPI_INVALID_ARGUMENT;
+
+    if (nvParams->version != NVAPI_GET_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_REQUIREMENTS_INFO_PARAMS_VER1)
+        return NVAPI_INCOMPATIBLE_STRUCT_VERSION;
+
+    if (!nvParams->pInput || !nvParams->pInfo)
+        return NVAPI_INVALID_ARGUMENT;
+
+    info = nvParams->pInfo;
+
+    if (!d3d12_device_supports_ray_tracing_tier_1_0(device) ||
+            !device->device_info.cluster_acceleration_structure_features_nv.clusterAccelerationStructure)
+    {
+        ERR("Cluster acceleration structure is not supported. Calling this is invalid.\n");
+        memset(info, 0, sizeof(*info));
+        return NVAPI_NOT_SUPPORTED;
+    }
+
+    if (!vkd3d_acceleration_structure_convert_cluster_inputs_nv(nvParams->pInput,
+            &input_info, &move_objects, &clusters_bottom_level, &triangle_clusters))
+        return NVAPI_NOT_SUPPORTED;
+
+    memset(&size_info, 0, sizeof(size_info));
+    size_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
+
+    VK_CALL(vkGetClusterAccelerationStructureBuildSizesNV(device->vk_device, &input_info, &size_info));
+
+    info->resultDataMaxSizeInBytes = size_info.accelerationStructureSize;
+    info->scratchDataSizeInBytes = size_info.buildScratchSize;
+
+    TRACE("ResultDataMaxSizeInBytes: %"PRIu64".\n", info->resultDataMaxSizeInBytes);
+    TRACE("ScratchDataSizeInBytes: %"PRIu64".\n", info->scratchDataSizeInBytes);
+
+    return NVAPI_OK;
+}
+
 CONST_VTBL struct ID3D12DeviceExt5Vtbl d3d12_device_vkd3d_ext_vtbl =
 {
     /* IUnknown methods */

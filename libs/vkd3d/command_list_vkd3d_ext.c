@@ -137,6 +137,66 @@ static BOOL STDMETHODCALLTYPE d3d12_command_list_vkd3d_ext_VerifyOpacityMicromap
     return as != VK_NULL_HANDLE && (rtas_kind == VKD3D_RTAS_KIND_NON_TLAS || rtas_kind == VKD3D_RTAS_KIND_MUTATED);
 }
 
+static HRESULT STDMETHODCALLTYPE d3d12_command_list_vkd3d_ext_RaytracingExecuteMultiIndirectClusterOperation(d3d12_command_list_vkd3d_ext_iface *iface,
+        const void *params)
+{
+    struct d3d12_command_list *list = d3d12_command_list_from_ID3D12GraphicsCommandListExt(iface);
+    const NVAPI_RAYTRACING_EXECUTE_MULTI_INDIRECT_CLUSTER_OPERATION_PARAMS *nvParams = params;
+    VkClusterAccelerationStructureClustersBottomLevelInputNV clusters_bottom_level;
+    const NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_DESC *desc;
+    const struct vkd3d_vk_device_procs *vk_procs = &list->device->vk_procs;
+    VkClusterAccelerationStructureTriangleClusterInputNV triangle_clusters;
+    VkClusterAccelerationStructureMoveObjectsInputNV move_objects;
+    VkClusterAccelerationStructureCommandsInfoNV commands_info;
+    TRACE("iface %p, params %p.\n", iface, params);
+
+    if (!nvParams)
+        return NVAPI_INVALID_ARGUMENT;
+
+    if (nvParams->version != NVAPI_RAYTRACING_EXECUTE_MULTI_INDIRECT_CLUSTER_OPERATION_PARAMS_VER1)
+        return NVAPI_INCOMPATIBLE_STRUCT_VERSION;
+
+    if (!nvParams->pDesc)
+        return NVAPI_INVALID_ARGUMENT;
+
+    desc = nvParams->pDesc;
+
+    if (!list->device->device_info.cluster_acceleration_structure_features_nv.clusterAccelerationStructure)
+    {
+        ERR("Cluster acceleration structure is not supported. Calling this is invalid.\n");
+        return NVAPI_NOT_SUPPORTED;
+    }
+
+    if (!vkd3d_acceleration_structure_convert_cluster_inputs_nv(&desc->inputs,
+            &commands_info.input, &move_objects, &clusters_bottom_level, &triangle_clusters))
+    {
+        ERR("Failed to convert inputs.\n");
+        return NVAPI_ERROR;
+    }
+
+    commands_info.sType = VK_STRUCTURE_TYPE_CLUSTER_ACCELERATION_STRUCTURE_COMMANDS_INFO_NV;
+    commands_info.pNext = NULL;
+    commands_info.dstImplicitData = desc->batchResultData;
+    commands_info.scratchData = desc->batchScratchData;
+    commands_info.dstAddressesArray.deviceAddress = desc->destinationAddressArray.StartAddress;
+    commands_info.dstAddressesArray.stride = desc->destinationAddressArray.StrideInBytes;
+    commands_info.dstAddressesArray.size = 0;
+    commands_info.dstSizesArray.deviceAddress = desc->resultSizeArray.StartAddress;
+    commands_info.dstSizesArray.stride = desc->resultSizeArray.StrideInBytes;
+    commands_info.dstSizesArray.size = 0;
+    commands_info.srcInfosArray.deviceAddress = desc->indirectArgArray.StartAddress;
+    commands_info.srcInfosArray.stride = desc->indirectArgArray.StrideInBytes;
+    commands_info.srcInfosArray.size = 0;
+    commands_info.srcInfosCount = desc->indirectArgCount;
+    commands_info.addressResolutionFlags = desc->addressResolutionFlags;
+
+    d3d12_command_list_flush_rtas_batch(list);
+
+    VK_CALL(vkCmdBuildClusterAccelerationStructureIndirectNV(list->cmd.vk_command_buffer, &commands_info));
+
+    return NVAPI_OK;
+}
+
 CONST_VTBL struct ID3D12GraphicsCommandListExt2Vtbl d3d12_command_list_vkd3d_ext_vtbl =
 {
     /* IUnknown methods */

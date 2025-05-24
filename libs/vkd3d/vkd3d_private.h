@@ -7051,6 +7051,12 @@ void vkd3d_acceleration_structure_copy(
         D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE mode,
         enum vkd3d_rtas_kind rtas_kind);
 
+bool vkd3d_acceleration_structure_convert_cluster_inputs_nv(const NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTS* input,
+        VkClusterAccelerationStructureInputInfoNV *input_info,
+        VkClusterAccelerationStructureMoveObjectsInputNV *move_objects,
+        VkClusterAccelerationStructureClustersBottomLevelInputNV *clusters_bottom_level,
+        VkClusterAccelerationStructureTriangleClusterInputNV *triangle_clusters);
+
 bool vkd3d_opacity_micromap_convert_inputs(const struct d3d12_device *device,
         const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS *inputs,
         VkAccelerationStructureBuildGeometryInfoKHR *build_info,

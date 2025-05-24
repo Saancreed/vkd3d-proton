@@ -855,6 +855,55 @@ static HRESULT STDMETHODCALLTYPE d3d12_device_vkd3d_ext_GetRaytracingMultiIndire
     return NVAPI_OK;
 }
 
+static HRESULT STDMETHODCALLTYPE d3d12_device_vkd3d_ext_GetRaytracingPartitionedTlasIndirectPrebuildInfo(d3d12_device_vkd3d_ext_iface *iface,
+        const void *params)
+{
+    const NVAPI_GET_BUILD_RAYTRACING_PARTITIONED_TLAS_INDIRECT_PREBUILD_INFO_PARAMS *nvParams = params;
+    struct d3d12_device *device = d3d12_device_from_ID3D12DeviceExt(iface);
+
+    NVAPI_D3D12_BUILD_RAYTRACING_PARTITIONED_TLAS_INDIRECT_PREBUILD_INFO *info;
+    VkPartitionedAccelerationStructureInstancesInputNV instances_input;
+    const struct vkd3d_vk_device_procs *vk_procs = &device->vk_procs;
+    VkAccelerationStructureBuildSizesInfoKHR size_info;
+    VkPartitionedAccelerationStructureFlagsNV flags;
+
+    TRACE("iface %p, params %p.\n", iface, params);
+
+    if (!params)
+        return NVAPI_INVALID_ARGUMENT;
+
+    if (nvParams->version != NVAPI_GET_BUILD_RAYTRACING_PARTITIONED_TLAS_INDIRECT_PREBUILD_INFO_PARAMS_VER1)
+        return NVAPI_INCOMPATIBLE_STRUCT_VERSION;
+
+    if (!nvParams->pInput || !nvParams->pInfo)
+        return NVAPI_INVALID_ARGUMENT;
+
+    info = nvParams->pInfo;
+
+    if (!d3d12_device_supports_ray_tracing_tier_1_0(device) ||
+            !device->device_info.partitioned_acceleration_structure_features_nv.partitionedAccelerationStructure)
+    {
+        ERR("Partitioned acceleration structure is not supported. Calling this is invalid.\n");
+        memset(info, 0, sizeof(*info));
+        return NVAPI_NOT_SUPPORTED;
+    }
+
+    vkd3d_acceleration_structure_convert_partitioned_inputs_nv(nvParams->pInput, &instances_input, &flags);
+
+    memset(&size_info, 0, sizeof(size_info));
+    size_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
+
+    VK_CALL(vkGetPartitionedAccelerationStructuresBuildSizesNV(device->vk_device, &instances_input, &size_info));
+
+    info->resultDataMaxSizeInBytes = size_info.accelerationStructureSize;
+    info->scratchDataSizeInBytes = size_info.buildScratchSize;
+
+    TRACE("ResultDataMaxSizeInBytes: %"PRIu64".\n", info->resultDataMaxSizeInBytes);
+    TRACE("ScratchDataSizeInBytes: %"PRIu64".\n", info->scratchDataSizeInBytes);
+
+    return NVAPI_OK;
+}
+
 CONST_VTBL struct ID3D12DeviceExt5Vtbl d3d12_device_vkd3d_ext_vtbl =
 {
     /* IUnknown methods */

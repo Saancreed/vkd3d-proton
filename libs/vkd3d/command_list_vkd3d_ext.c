@@ -242,7 +242,7 @@ static HRESULT STDMETHODCALLTYPE d3d12_command_list_vkd3d_ext_BuildRaytracingPar
     return NVAPI_OK;
 }
 
-CONST_VTBL struct ID3D12GraphicsCommandListExt2Vtbl d3d12_command_list_vkd3d_ext_vtbl =
+CONST_VTBL struct ID3D12GraphicsCommandListExt3Vtbl d3d12_command_list_vkd3d_ext_vtbl =
 {
     /* IUnknown methods */
     d3d12_command_list_vkd3d_ext_QueryInterface,
@@ -258,5 +258,9 @@ CONST_VTBL struct ID3D12GraphicsCommandListExt2Vtbl d3d12_command_list_vkd3d_ext
 
     /* ID3D12GraphicsCommandListExt2 methods */
     d3d12_command_list_vkd3d_ext_VerifyOpacityMicromapArrayNVAPI,
+
+    /* ID3D12GraphicsCommandListExt3 methods */
+    d3d12_command_list_vkd3d_ext_RaytracingExecuteMultiIndirectClusterOperation,
+    d3d12_command_list_vkd3d_ext_BuildRaytracingPartitionedTlasIndirect,
 };
 

@@ -86,6 +86,7 @@ static const struct vkd3d_optional_extension_info optional_device_extensions[] =
     VK_EXTENSION(KHR_MAINTENANCE_10, KHR_maintenance10),
     VK_EXTENSION(KHR_SHADER_MAXIMAL_RECONVERGENCE, KHR_shader_maximal_reconvergence),
     VK_EXTENSION(KHR_SHADER_QUAD_CONTROL, KHR_shader_quad_control),
+    VK_EXTENSION(KHR_SHADER_CLOCK, KHR_shader_clock),
     VK_EXTENSION(KHR_COMPUTE_SHADER_DERIVATIVES, KHR_compute_shader_derivatives),
     VK_EXTENSION(KHR_CALIBRATED_TIMESTAMPS, KHR_calibrated_timestamps),
     VK_EXTENSION(KHR_COOPERATIVE_MATRIX, KHR_cooperative_matrix),
@@ -2301,6 +2302,12 @@ static void vkd3d_physical_device_info_init(struct vkd3d_physical_device_info *i
     {
         info->shader_quad_control_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_QUAD_CONTROL_FEATURES_KHR;
         vk_prepend_struct(&info->features2, &info->shader_quad_control_features);
+    }
+
+    if (vulkan_info->KHR_shader_clock)
+    {
+        info->shader_clock_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_CLOCK_FEATURES_KHR;
+        vk_prepend_struct(&info->features2, &info->shader_clock_features);
     }
 
     if (vulkan_info->KHR_compute_shader_derivatives || vulkan_info->NV_compute_shader_derivatives)

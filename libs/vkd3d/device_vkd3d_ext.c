@@ -660,6 +660,10 @@ static BOOL STDMETHODCALLTYPE d3d12_device_vkd3d_ext_IsNvShaderExtnOpCodeSupport
 
     switch (op_code)
     {
+        case NV_EXTN_OP_GET_SPECIAL:
+            /* Assume the caller is interested in NV_SPECIALOP_GLOBAL_TIMER_{LO,HI},
+             * as other subopcodes are only used together with other opcodes. */
+            return device->device_info.shader_clock_features.shaderDeviceClock ? TRUE : FALSE;
         case NV_EXTN_OP_HIT_OBJECT_TRACE_RAY:
         case NV_EXTN_OP_HIT_OBJECT_MAKE_HIT:
         case NV_EXTN_OP_HIT_OBJECT_MAKE_HIT_WITH_RECORD_INDEX:

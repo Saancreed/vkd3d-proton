@@ -150,6 +150,7 @@ struct vkd3d_vulkan_info
     bool KHR_maintenance11;
     bool KHR_shader_maximal_reconvergence;
     bool KHR_shader_quad_control;
+    bool KHR_shader_clock;
     bool KHR_compute_shader_derivatives;
     bool KHR_calibrated_timestamps;
     bool KHR_cooperative_matrix;
@@ -5320,6 +5321,7 @@ struct vkd3d_physical_device_info
     VkPhysicalDeviceSwapchainMaintenance1FeaturesKHR swapchain_maintenance1_features;
     VkPhysicalDeviceShaderMaximalReconvergenceFeaturesKHR shader_maximal_reconvergence_features;
     VkPhysicalDeviceShaderQuadControlFeaturesKHR shader_quad_control_features;
+    VkPhysicalDeviceShaderClockFeaturesKHR shader_clock_features;
     VkPhysicalDeviceRawAccessChainsFeaturesNV raw_access_chains_nv;
     VkPhysicalDeviceAddressBindingReportFeaturesEXT address_binding_report_features;
     VkPhysicalDeviceImageAlignmentControlFeaturesMESA image_alignment_control_features;

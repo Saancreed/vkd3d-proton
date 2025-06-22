@@ -6493,7 +6493,7 @@ static void vk_access_and_stage_flags_from_d3d12_resource_state(const struct d3d
                     *access |= VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR |
                             VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
 
-                    if (d3d12_device_supports_ray_tracing_tier_1_2(device))
+                    if (device->device_info.opacity_micromap_features.micromap)
                     {
                         *stages |= VK_PIPELINE_STAGE_2_MICROMAP_BUILD_BIT_EXT;
                         *access |= VK_ACCESS_2_MICROMAP_READ_BIT_EXT |
@@ -6511,7 +6511,7 @@ static void vk_access_and_stage_flags_from_d3d12_resource_state(const struct d3d
                     *access |= VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR |
                             VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR;
 
-                    if (d3d12_device_supports_ray_tracing_tier_1_2(device))
+                    if (device->device_info.opacity_micromap_features.micromap)
                     {
                         *stages |= VK_PIPELINE_STAGE_2_MICROMAP_BUILD_BIT_EXT;
                         *access |= VK_ACCESS_2_MICROMAP_WRITE_BIT_EXT |
@@ -6544,7 +6544,7 @@ static void vk_access_and_stage_flags_from_d3d12_resource_state(const struct d3d
                      * They access SHADER_READ_BIT in Vulkan, so just need to add the stage. */
                     *stages |= VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
 
-                    if (d3d12_device_supports_ray_tracing_tier_1_2(device))
+                    if (device->device_info.opacity_micromap_features.micromap)
                         *stages |= VK_PIPELINE_STAGE_2_MICROMAP_BUILD_BIT_EXT;
                 }
                 break;
@@ -20106,7 +20106,7 @@ static bool d3d12_command_list_allocate_rtas_build_info(struct d3d12_command_lis
         return false;
     }
 
-    if (d3d12_device_supports_ray_tracing_tier_1_2(list->device) &&
+    if (list->device->device_info.opacity_micromap_features.micromap &&
             !vkd3d_array_reserve((void **)&rtas_batch->omm_infos, &rtas_batch->omm_info_size,
             rtas_batch->geometry_info_count + geometry_count, sizeof(*rtas_batch->omm_infos)))
     {
@@ -20123,7 +20123,7 @@ static bool d3d12_command_list_allocate_rtas_build_info(struct d3d12_command_lis
 
     *build_info = &rtas_batch->build_infos[rtas_batch->build_info_count];
     *geometry_infos = &rtas_batch->geometry_infos[rtas_batch->geometry_info_count];
-    if (d3d12_device_supports_ray_tracing_tier_1_2(list->device))
+    if (list->device->device_info.opacity_micromap_features.micromap)
         *omm_infos = &rtas_batch->omm_infos[rtas_batch->geometry_info_count];
     else
         *omm_infos = NULL;

@@ -1552,7 +1552,21 @@ struct vkd3d_view *vkd3d_view_map_create_view2(struct vkd3d_view_map *view_map,
     bool success;
 
     if ((view = vkd3d_view_map_get_view(view_map, device, key)))
+    {
+        if (key->view_type == VKD3D_VIEW_TYPE_ACCELERATION_STRUCTURE_OR_OPACITY_MICROMAP)
+        {
+            success = true;
+
+            if (!rtas_is_omm && view->vk_acceleration_structure == VK_NULL_HANDLE)
+                success = vkd3d_create_acceleration_structure_view(device, &key->u.buffer, &view);
+            else if (rtas_is_omm && view->vk_micromap == VK_NULL_HANDLE)
+                success = vkd3d_create_opacity_micromap_view(device, &key->u.buffer, &view);
+
+            if (!success)
+                return NULL;
+        }
         return view;
+    }
 
     switch (key->view_type)
     {
@@ -4848,9 +4862,9 @@ static void vkd3d_view_destroy(struct vkd3d_view *view, struct d3d12_device *dev
             VK_CALL(vkDestroySampler(device->vk_device, view->vk_sampler, NULL));
             break;
         case VKD3D_VIEW_TYPE_ACCELERATION_STRUCTURE_OR_OPACITY_MICROMAP:
-            if (view->info.buffer.rtas_is_micromap)
+            if (view->vk_micromap != VK_NULL_HANDLE)
                 VK_CALL(vkDestroyMicromapEXT(device->vk_device, view->vk_micromap, NULL));
-            else
+            if (view->vk_acceleration_structure != VK_NULL_HANDLE)
                 VK_CALL(vkDestroyAccelerationStructureKHR(device->vk_device, view->vk_acceleration_structure, NULL));
             break;
         default:
@@ -5143,7 +5157,6 @@ bool vkd3d_create_buffer_view(struct d3d12_device *device, const struct vkd3d_bu
     object->format = desc->format;
     object->info.buffer.offset = desc->offset;
     object->info.buffer.size = desc->size;
-    object->info.buffer.rtas_is_micromap = false;
     *view = object;
     return true;
 }
@@ -5172,6 +5185,12 @@ bool vkd3d_create_acceleration_structure_view(struct d3d12_device *device, const
     if (vr != VK_SUCCESS)
         return false;
 
+    if (*view)
+    {
+        (*view)->vk_acceleration_structure = vk_acceleration_structure;
+        return true;
+    }
+
     if (!(object = vkd3d_view_create(VKD3D_VIEW_TYPE_ACCELERATION_STRUCTURE_OR_OPACITY_MICROMAP)))
     {
         VK_CALL(vkDestroyAccelerationStructureKHR(device->vk_device, vk_acceleration_structure, NULL));
@@ -5192,10 +5211,10 @@ bool vkd3d_create_acceleration_structure_view(struct d3d12_device *device, const
     }
 
     object->vk_acceleration_structure = vk_acceleration_structure;
+    object->vk_micromap = VK_NULL_HANDLE;
     object->format = desc->format;
     object->info.buffer.offset = desc->offset;
     object->info.buffer.size = desc->size;
-    object->info.buffer.rtas_is_micromap = false;
     *view = object;
     return true;
 }
@@ -5222,17 +5241,23 @@ bool vkd3d_create_opacity_micromap_view(struct d3d12_device *device, const struc
     if (vr != VK_SUCCESS)
         return false;
 
+    if (*view)
+    {
+        (*view)->vk_micromap = vk_micromap;
+        return true;
+    }
+
     if (!(object = vkd3d_view_create(VKD3D_VIEW_TYPE_ACCELERATION_STRUCTURE_OR_OPACITY_MICROMAP)))
     {
         VK_CALL(vkDestroyMicromapEXT(device->vk_device, vk_micromap, NULL));
         return false;
     }
 
+    object->vk_acceleration_structure = VK_NULL_HANDLE;
     object->vk_micromap = vk_micromap;
     object->format = desc->format;
     object->info.buffer.offset = desc->offset;
     object->info.buffer.size = desc->size;
-    object->info.buffer.rtas_is_micromap = true;
     *view = object;
     return true;
 }

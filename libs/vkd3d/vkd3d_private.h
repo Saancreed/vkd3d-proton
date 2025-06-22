@@ -1314,8 +1314,8 @@ struct vkd3d_view
         VkImageView vk_image_view;
         VkSampler vk_sampler;
         VkAccelerationStructureKHR vk_acceleration_structure;
-        VkMicromapEXT vk_micromap;
     };
+    VkMicromapEXT vk_micromap;
     const struct vkd3d_format *format;
     union
     {
@@ -1323,7 +1323,6 @@ struct vkd3d_view
         {
             VkDeviceSize offset;
             VkDeviceSize size;
-            bool rtas_is_micromap; /* not hashed */
         } buffer;
         struct
         {

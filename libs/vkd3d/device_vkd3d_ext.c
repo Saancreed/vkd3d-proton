@@ -794,6 +794,7 @@ static HRESULT STDMETHODCALLTYPE d3d12_low_latency_device_LatencySleep(d3d_low_l
 {
     struct dxgi_vk_swap_chain *low_latency_swapchain;
     struct d3d12_device *device;
+    static unsigned i = 0;
 
     device = d3d12_device_from_ID3DLowLatencyDevice(iface);
 
@@ -809,6 +810,10 @@ static HRESULT STDMETHODCALLTYPE d3d12_low_latency_device_LatencySleep(d3d_low_l
     {
         dxgi_vk_swap_chain_latency_sleep(low_latency_swapchain);
         dxgi_vk_swap_chain_decref(low_latency_swapchain);
+    }
+    else if (!(i++ & 0xff))
+    {
+        WARN("No low latency swapchain to perform latency sleep on.\n");
     }
 
     return S_OK;

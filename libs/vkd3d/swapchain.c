@@ -3186,6 +3186,7 @@ void dxgi_vk_swap_chain_latency_sleep(struct dxgi_vk_swap_chain *chain)
     VkLatencySleepInfoNV latency_sleep_info;
     VkSemaphoreWaitInfo sem_wait_info;
     bool should_sleep = false;
+    static unsigned i = 0;
 
     /* Increment the low latency sem value before the wait */
     chain->present.low_latency_sem_value++;
@@ -3221,6 +3222,10 @@ void dxgi_vk_swap_chain_latency_sleep(struct dxgi_vk_swap_chain *chain)
         VK_CALL(vkWaitSemaphores(chain->queue->device->vk_device, &sem_wait_info, UINT64_MAX));
         vkd3d_queue_timeline_trace_complete_low_latency_sleep(
                 &chain->queue->device->queue_timeline_trace, cookie);
+    }
+    else if (!(i++ & 0xff))
+    {
+        WARN("No Vulkan swapchain to perform latency sleep on.\n");
     }
 }
 

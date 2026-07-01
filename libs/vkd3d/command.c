@@ -85,7 +85,6 @@ static void d3d12_command_list_end_transfer_batch_if_trivial(struct d3d12_comman
 static void d3d12_command_list_end_wbi_batch(struct d3d12_command_list *list);
 static inline void d3d12_command_list_ensure_transfer_batch(struct d3d12_command_list *list, enum vkd3d_batch_type type);
 static void d3d12_command_list_free_rtas_batch(struct d3d12_command_list *list);
-static void d3d12_command_list_flush_rtas_batch(struct d3d12_command_list *list);
 static void d3d12_command_list_flush_rtas_barrier(struct d3d12_command_list *list);
 static void d3d12_command_list_clear_rtas_batch(struct d3d12_command_list *list);
 
@@ -20444,7 +20443,7 @@ static void d3d12_command_list_fixup_rtas_batch(struct d3d12_command_list *list)
     }
 }
 
-static void d3d12_command_list_flush_rtas_batch(struct d3d12_command_list *list)
+void d3d12_command_list_flush_rtas_batch(struct d3d12_command_list *list)
 {
     const struct vkd3d_vk_device_procs *vk_procs = &list->device->vk_procs;
     struct d3d12_rtas_batch_state *rtas_batch = &list->rtas_batch;

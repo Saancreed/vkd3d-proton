@@ -723,6 +723,7 @@ static HRESULT STDMETHODCALLTYPE d3d12_device_vkd3d_ext_SetAGSUAVSlot(d3d12_devi
 static BOOL STDMETHODCALLTYPE d3d12_device_vkd3d_ext_IsNvShaderExtnOpCodeSupported(d3d12_device_vkd3d_ext_iface *iface,
         UINT32 op_code)
 {
+    const VkPhysicalDeviceClusterAccelerationStructureFeaturesNV *clas_features;
     const VkPhysicalDeviceRayTracingLinearSweptSpheresFeaturesNV *lss_features;
     const VkPhysicalDeviceRayTracingInvocationReorderFeaturesNV *ser_features;
     struct d3d12_device *device = d3d12_device_from_ID3D12DeviceExt(iface);
@@ -734,6 +735,7 @@ static BOOL STDMETHODCALLTYPE d3d12_device_vkd3d_ext_IsNvShaderExtnOpCodeSupport
 
     ser_features = &device->device_info.ray_tracing_invocation_reorder_features_nv;
     lss_features = &device->device_info.ray_tracing_linear_swept_spheres_features_nv;
+    clas_features = &device->device_info.cluster_acceleration_structure_features_nv;
 
     switch (op_code)
     {
@@ -790,6 +792,14 @@ static BOOL STDMETHODCALLTYPE d3d12_device_vkd3d_ext_IsNvShaderExtnOpCodeSupport
         case NV_EXTN_OP_HIT_OBJECT_IS_NOP:
         case NV_EXTN_OP_HIT_OBJECT_MAKE_NOP:
             return ser_features->rayTracingInvocationReorder ? TRUE : FALSE;
+
+        case NV_EXTN_OP_RT_GET_CLUSTER_ID:
+        case NV_EXTN_OP_RT_GET_CANDIDATE_CLUSTER_ID:
+        case NV_EXTN_OP_RT_GET_COMMITTED_CLUSTER_ID:
+            return clas_features->clusterAccelerationStructure ? TRUE : FALSE;
+
+        case NV_EXTN_OP_HIT_OBJECT_GET_CLUSTER_ID:
+            return clas_features->clusterAccelerationStructure && ser_features->rayTracingInvocationReorder ? TRUE : FALSE;
 
         default:
             return FALSE;

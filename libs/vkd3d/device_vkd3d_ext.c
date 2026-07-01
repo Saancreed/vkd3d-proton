@@ -727,6 +727,13 @@ static BOOL STDMETHODCALLTYPE d3d12_device_vkd3d_ext_IsNvShaderExtnOpCodeSupport
         case NV_EXTN_OP_HIT_OBJECT_IS_NOP:
         case NV_EXTN_OP_HIT_OBJECT_MAKE_NOP:
             return device->device_info.ray_tracing_invocation_reorder_features_nv.rayTracingInvocationReorder ? TRUE : FALSE;
+        case NV_EXTN_OP_RT_GET_CLUSTER_ID:
+        case NV_EXTN_OP_RT_GET_CANDIDATE_CLUSTER_ID:
+        case NV_EXTN_OP_RT_GET_COMMITTED_CLUSTER_ID:
+            return device->device_info.cluster_acceleration_structure_features_nv.clusterAccelerationStructure ? TRUE : FALSE;
+        case NV_EXTN_OP_HIT_OBJECT_GET_CLUSTER_ID:
+            return device->device_info.ray_tracing_invocation_reorder_features_nv.rayTracingInvocationReorder
+                && device->device_info.cluster_acceleration_structure_features_nv.clusterAccelerationStructure ? TRUE : FALSE;
         default:
             return FALSE;
     }

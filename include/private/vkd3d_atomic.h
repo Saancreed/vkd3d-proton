@@ -238,6 +238,8 @@ static inline uint32_t vkd3d_atomic_uint32_compare_exchange(uint32_t* target, ui
 # define vkd3d_atomic_uint64_exchange_explicit(target, value, order) vkd3d_atomic_generic_exchange_explicit(target, value, order)
 # define vkd3d_atomic_uint64_increment(target, order)                vkd3d_atomic_generic_increment(target, order)
 # define vkd3d_atomic_uint64_decrement(target, order)                vkd3d_atomic_generic_decrement(target, order)
+# define vkd3d_atomic_uint64_and(target, value, order)               vkd3d_atomic_generic_and(target, value, order)
+# define vkd3d_atomic_uint64_or(target, value, order)                vkd3d_atomic_generic_or(target, value, order)
 static inline uint64_t vkd3d_atomic_uint64_compare_exchange(UINT64* target, uint64_t expected, uint64_t desired,
         vkd3d_memory_order success_order, vkd3d_memory_order fail_order)
 {

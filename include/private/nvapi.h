@@ -434,6 +434,87 @@ typedef enum _NvAPI_Status
 
 #if defined(__cplusplus) && defined(__d3d12_h__) && defined(__ID3D12Device5_INTERFACE_DEFINED__)
 
+//! This enum extends \c D3D12_RAYTRACING_GEOMETRY_TYPE with additional values.
+//!
+//! \ingroup dx
+typedef enum _NVAPI_D3D12_RAYTRACING_GEOMETRY_TYPE_EX
+{
+    // D3D12_RAYTRACING_GEOMETRY_TYPE flags
+    NVAPI_D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES_EX                  = 0x0, //!< This geometry is made of basic triangles.
+    NVAPI_D3D12_RAYTRACING_GEOMETRY_TYPE_PROCEDURAL_PRIMITIVE_AABBS_EX = 0x1, //!< This geometry is made of axis-aligned bounding boxes (AABBs).
+
+    // NVAPI_D3D12_RAYTRACING_GEOMETRY_TYPE_EX specific flags
+    NVAPI_D3D12_RAYTRACING_GEOMETRY_TYPE_OMM_TRIANGLES_EX              = 0x2, //!< Shares most fields with the basic triangle geometry type, but allows an OMM Array to be attached to the geometry.
+                                                                              //!< The basic triangle type and this OMM-enabled type geometries may be mixed in the same BLAS build.
+    NVAPI_D3D12_RAYTRACING_GEOMETRY_TYPE_SPHERES_EX                    = 0x4, //!< This geometry contains sphere primitives.
+                                                                              //!< Cannot be mixed with other geometry types in the same BLAS.
+    NVAPI_D3D12_RAYTRACING_GEOMETRY_TYPE_LSS_EX                        = 0x5, //!< This geometry contains linear swept sphere primitives.
+                                                                              //!< Cannot be mixed with other geometry types in the same BLAS.
+
+} NVAPI_D3D12_RAYTRACING_GEOMETRY_TYPE_EX;
+
+//! Sphere geometry descriptor.
+//!
+//! \ingroup dx
+typedef struct _NVAPI_D3D12_RAYTRACING_GEOMETRY_SPHERES_DESC
+{
+    NvU32                                       vertexCount;          //!< The largest valid index plus one.
+    NvU32                                       indexCount;           //!< Number of indices in index buffer.
+
+    D3D12_GPU_VIRTUAL_ADDRESS_AND_STRIDE        vertexPositionBuffer; //!< Vertex position buffer and stride.
+    DXGI_FORMAT                                 vertexPositionFormat; //!< Supports the same formats as the triangle vertex buffers.
+
+    D3D12_GPU_VIRTUAL_ADDRESS_AND_STRIDE        vertexRadiusBuffer;   //!< Vertex radius buffer and stride. Radii must be 0 or greater. The stride can be set to 0 to set a constant radius for all primitives in the geometry.
+    DXGI_FORMAT                                 vertexRadiusFormat;   //!< Supported formats are `DXGI_FORMAT_R32_FLOAT` and `DXGI_FORMAT_R16_FLOAT`.
+
+    D3D12_GPU_VIRTUAL_ADDRESS_AND_STRIDE        indexBuffer;          //!< Indices to positions and radii, one entry per sphere primitive. May be set to NULL to use the list of positions and radii from vertexPositionBuffer and vertexRadiusBuffer.
+    DXGI_FORMAT                                 indexFormat;          //!< Supported formats are `DXGI_FORMAT_R32_UINT`, `DXGI_FORMAT_R16_UINT`, `DXGI_FORMAT_R8_UINT`.
+
+} NVAPI_D3D12_RAYTRACING_GEOMETRY_SPHERES_DESC;
+
+//! Describes the endcap enable/disable behavior of LSS primitives.
+//!
+//! \ingroup dx
+typedef enum _NVAPI_D3D12_RAYTRACING_LSS_ENDCAP_MODE
+{
+    NVAPI_D3D12_RAYTRACING_LSS_ENDCAP_MODE_NONE    = 0, //!< None of the primitives have endcaps enabled. Only midsections may be intersected.
+    NVAPI_D3D12_RAYTRACING_LSS_ENDCAP_MODE_CHAINED = 1, //!< The last primitive in each chain has both endcaps enabled. Preceding primitives within chains only have their first endcap enabled.
+
+} NVAPI_D3D12_RAYTRACING_LSS_ENDCAP_MODE;
+
+//! Describes how LSS primitives are constructed from vertex and index buffer inputs.
+//!
+//! \ingroup dx
+typedef enum _NVAPI_D3D12_RAYTRACING_LSS_PRIMITIVE_FORMAT
+{
+    NVAPI_D3D12_RAYTRACING_LSS_PRIMITIVE_FORMAT_LIST                = 0, //!< Each LSS primitive is defined by a pair of vertices. The index buffer is optional for this format.
+    NVAPI_D3D12_RAYTRACING_LSS_PRIMITIVE_FORMAT_SUCCESSIVE_IMPLICIT = 1, //!< Each LSS is defined by two successive vertices (k, k + 1), where k is the entry in the index buffer. This format requires an index buffer to be supplied in the geometry descriptor.
+
+} NVAPI_D3D12_RAYTRACING_LSS_PRIMITIVE_FORMAT;
+
+//! Linear Swept Sphere (LSS) geometry descriptor.
+//!
+//! \ingroup dx
+typedef struct _NVAPI_D3D12_RAYTRACING_GEOMETRY_LSS_DESC
+{
+    NvU32                                       vertexCount;          //!< The largest valid index plus one.
+    NvU32                                       indexCount;           //!< Number of indices in index buffer.
+    NvU32                                       primitiveCount;       //!< Specifies the total number of primitives (including inactive ones).
+
+    D3D12_GPU_VIRTUAL_ADDRESS_AND_STRIDE        vertexPositionBuffer; //!< Vertex position buffer and stride.
+    DXGI_FORMAT                                 vertexPositionFormat; //!< Supports the same formats as the triangle vertex buffers.
+
+    D3D12_GPU_VIRTUAL_ADDRESS_AND_STRIDE        vertexRadiusBuffer;   //!< Vertex radius buffer and stride. Radii must be 0 or greater. The stride can be set to 0 to set a constant radius for all primitives in the geometry.
+    DXGI_FORMAT                                 vertexRadiusFormat;   //!< Supported formats are `DXGI_FORMAT_R32_FLOAT` and `DXGI_FORMAT_R16_FLOAT`.
+
+    D3D12_GPU_VIRTUAL_ADDRESS_AND_STRIDE        indexBuffer;          //!< Indices to positions and radii, one entry per sphere primitive. May be set to NULL to use the list of positions and radii from vertexPositionBuffer and vertexRadiusBuffer.
+    DXGI_FORMAT                                 indexFormat;          //!< Supported formats are `DXGI_FORMAT_R32_UINT`, `DXGI_FORMAT_R16_UINT`, `DXGI_FORMAT_R8_UINT`.
+
+    NVAPI_D3D12_RAYTRACING_LSS_ENDCAP_MODE      endcapMode;           //!< Specifies which endcaps are enabled and disabled over collections of LSS primitives within the geometry.
+    NVAPI_D3D12_RAYTRACING_LSS_PRIMITIVE_FORMAT primitiveFormat;      //!< Selects how input buffers are to be interpreted to construct LSS primitives.
+
+} NVAPI_D3D12_RAYTRACING_GEOMETRY_LSS_DESC;
+
 //! \ingroup dx
 #define NVAPI_D3D12_RAYTRACING_CLAS_BYTE_ALIGNMENT 128                    //!< The alignment required for storage of CLAS objects
 

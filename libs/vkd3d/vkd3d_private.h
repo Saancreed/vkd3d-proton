@@ -7052,6 +7052,30 @@ void vkd3d_acceleration_structure_copy(
         D3D12_RAYTRACING_ACCELERATION_STRUCTURE_COPY_MODE mode,
         enum vkd3d_rtas_kind rtas_kind);
 
+//! This structure extends \c D3D12_RAYTRACING_GEOMETRY_DESC by supporting additional geometry types.
+//!
+//! \ingroup dx
+typedef struct _D3D12_VK_EXT_RAYTRACING_GEOMETRY_DESC_EX
+{
+    NVAPI_D3D12_RAYTRACING_GEOMETRY_TYPE_EX Type;  //!< The type of geometry stored in the union of this structure.
+    D3D12_RAYTRACING_GEOMETRY_FLAGS         Flags; //!< Flags affecting how this geometry is processed by the raytracing pipeline.
+    union
+    {
+        D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC           Triangles;    //!< Describes triangle geometry if \c type is #NVAPI_D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES_EX.
+                                                                         //!< Otherwise, this parameter is unused (space repurposed in a union).
+        D3D12_RAYTRACING_GEOMETRY_AABBS_DESC               AABBs;        //!< Describes AABB geometry if \c type is #NVAPI_D3D12_RAYTRACING_GEOMETRY_TYPE_PROCEDURAL_PRIMITIVE_AABBS_EX.
+                                                                         //!< Otherwise, this parameter is unused (space repurposed in a union).
+        D3D12_RAYTRACING_GEOMETRY_OMM_TRIANGLES_DESC       OmmTriangles; //!< Describes triangle geometry which may optionally use Opacity Micromaps, if \c type is #NVAPI_D3D12_RAYTRACING_GEOMETRY_TYPE_OMM_TRIANGLES_EX.
+                                                                         //!< Otherwise, this parameter is unused (space repurposed in a union).
+        NVAPI_D3D12_RAYTRACING_GEOMETRY_SPHERES_DESC*      Spheres;      //!< Describes sphere geometry if \c type is #NVAPI_D3D12_RAYTRACING_GEOMETRY_TYPE_SPHERE_EX.
+                                                                         //!< Otherwise, this parameter is unused (space repurposed in a union).
+        NVAPI_D3D12_RAYTRACING_GEOMETRY_LSS_DESC*          LSS;          //!< Describes linear swept sphere geometry if \c type is #NVAPI_D3D12_RAYTRACING_GEOMETRY_TYPE_LSS_EX.
+                                                                         //!< Otherwise, this parameter is unused (space repurposed in a union).
+    };
+} D3D12_VK_EXT_RAYTRACING_GEOMETRY_DESC_EX;
+
+STATIC_ASSERT(sizeof(D3D12_VK_EXT_RAYTRACING_GEOMETRY_DESC_EX) == sizeof(D3D12_RAYTRACING_GEOMETRY_DESC));
+
 bool vkd3d_acceleration_structure_convert_cluster_inputs_nv(const NVAPI_D3D12_RAYTRACING_MULTI_INDIRECT_CLUSTER_OPERATION_INPUTS* input,
         VkClusterAccelerationStructureInputInfoNV *input_info,
         VkClusterAccelerationStructureMoveObjectsInputNV *move_objects,

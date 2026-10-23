@@ -3170,6 +3170,12 @@ struct vk_acceleration_structure_postbuild_info
     enum vkd3d_rtas_kind rtas_kind; /* Only used for immediate BLAS or TLAS build. */
 };
 
+union vkd3d_acceleration_structure_geometry_data_nv
+{
+    VkAccelerationStructureGeometrySpheresDataNV spheres;
+    VkAccelerationStructureGeometryLinearSweptSpheresDataNV lss;
+};
+
 struct d3d12_rtas_batch_state
 {
     D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE build_type;
@@ -3186,6 +3192,9 @@ struct d3d12_rtas_batch_state
 
     VkAccelerationStructureTrianglesOpacityMicromapKHR *omm_triangles_infos;
     size_t omm_triangles_info_size;
+
+    union vkd3d_acceleration_structure_geometry_data_nv *nv_geometry_infos;
+    size_t nv_geometry_info_size;
 
     VkAccelerationStructureBuildRangeInfoKHR *range_infos;
     size_t range_info_size;
@@ -7018,11 +7027,14 @@ static inline struct vkd3d_view *vkd3d_view_map_create_view(struct vkd3d_view_ma
 
 uint32_t vkd3d_acceleration_structure_get_geometry_count(
         const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS *desc);
+bool vkd3d_acceleration_structure_needs_nv_geometry_info(const struct d3d12_device *device,
+        const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS *desc);
 bool vkd3d_acceleration_structure_convert_inputs(struct d3d12_device *device,
         const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS *desc,
         VkAccelerationStructureBuildGeometryInfoKHR *build_info,
         VkAccelerationStructureGeometryKHR *geometry_infos,
         VkAccelerationStructureTrianglesOpacityMicromapKHR *omm_triangles_infos,
+        union vkd3d_acceleration_structure_geometry_data_nv *nv_geometry_infos,
         VkAccelerationStructureBuildRangeInfoKHR *range_infos,
         uint32_t *primitive_counts);
 bool vkd3d_acceleration_structure_resolve_omm_va_maps(struct d3d12_device *device,

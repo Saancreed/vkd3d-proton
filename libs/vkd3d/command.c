@@ -21014,6 +21014,7 @@ static void d3d12_command_list_free_rtas_batch(struct d3d12_command_list *list)
     vkd3d_free(rtas_batch->build_infos);
     vkd3d_free(rtas_batch->geometry_infos);
     vkd3d_free(rtas_batch->omm_triangles_infos);
+    vkd3d_free(rtas_batch->nv_geometry_infos);
     vkd3d_free(rtas_batch->range_infos);
     vkd3d_free(rtas_batch->range_ptrs);
     vkd3d_free(rtas_batch->omm_build_infos);
@@ -21050,10 +21051,12 @@ static bool d3d12_command_list_register_rtas_scratch_range(
     return false;
 }
 
-static bool d3d12_command_list_allocate_rtas_build_info(struct d3d12_command_list *list, uint32_t geometry_count,
+static bool d3d12_command_list_allocate_rtas_build_info(struct d3d12_command_list *list,
+        uint32_t geometry_count, bool needs_nv_geometry_info,
         VkAccelerationStructureBuildGeometryInfoKHR **build_info,
         VkAccelerationStructureGeometryKHR **geometry_infos,
         VkAccelerationStructureTrianglesOpacityMicromapKHR **omm_triangles_infos,
+        union vkd3d_acceleration_structure_geometry_data_nv **nv_geometry_infos,
         VkAccelerationStructureBuildRangeInfoKHR **range_infos)
 {
     struct d3d12_rtas_batch_state *rtas_batch = &list->rtas_batch;
@@ -21089,12 +21092,24 @@ static bool d3d12_command_list_allocate_rtas_build_info(struct d3d12_command_lis
         return false;
     }
 
+    if (needs_nv_geometry_info && !vkd3d_array_reserve((void **)&rtas_batch->nv_geometry_infos,
+            &rtas_batch->nv_geometry_info_size, rtas_batch->geometry_info_count + geometry_count,
+            sizeof(*rtas_batch->nv_geometry_infos)))
+    {
+        ERR("Failed to allocate sphere and LSS geometry info array.\n");
+        return false;
+    }
+
     *build_info = &rtas_batch->build_infos[rtas_batch->build_info_count];
     *geometry_infos = &rtas_batch->geometry_infos[rtas_batch->geometry_info_count];
     if (list->device->device_info.supports_opacity_micromap)
         *omm_triangles_infos = &rtas_batch->omm_triangles_infos[rtas_batch->geometry_info_count];
     else
         *omm_triangles_infos = NULL;
+    if (needs_nv_geometry_info)
+        *nv_geometry_infos = &rtas_batch->nv_geometry_infos[rtas_batch->geometry_info_count];
+    else
+        *nv_geometry_infos = NULL;
     *range_infos = &rtas_batch->range_infos[rtas_batch->geometry_info_count];
 
     rtas_batch->build_info_count += 1;
@@ -21200,6 +21215,20 @@ static void d3d12_command_list_fixup_rtas_batch(struct d3d12_command_list *list)
             rtas_batch->range_ptrs[i] = &rtas_batch->range_infos[geometry_index];
 
         geometry_index += geometry_count;
+    }
+
+    /* Payload arrays may move when appending builds to the batch. */
+    if (rtas_batch->nv_geometry_infos)
+    {
+        for (i = 0; i < geometry_index; i++)
+        {
+            VkAccelerationStructureGeometryKHR *geometry = &rtas_batch->geometry_infos[i];
+
+            if (geometry->geometryType == VK_GEOMETRY_TYPE_SPHERES_NV)
+                geometry->pNext = &rtas_batch->nv_geometry_infos[i].spheres;
+            else if (geometry->geometryType == VK_GEOMETRY_TYPE_LINEAR_SWEPT_SPHERES_NV)
+                geometry->pNext = &rtas_batch->nv_geometry_infos[i].lss;
+        }
     }
 
     if (list->device->device_info.supports_opacity_micromap)
@@ -21434,6 +21463,7 @@ static void d3d12_command_list_build_raytracing_blas_and_tlas(struct d3d12_comma
         const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC *postbuild_info_descs)
 {
     VkAccelerationStructureTrianglesOpacityMicromapKHR *omm_triangles_infos;
+    union vkd3d_acceleration_structure_geometry_data_nv *nv_geometry_infos;
     const struct vkd3d_vk_device_procs *vk_procs = &list->device->vk_procs;
     VkAccelerationStructureBuildGeometryInfoKHR *build_info;
     VkAccelerationStructureBuildRangeInfoKHR *range_infos;
@@ -21460,11 +21490,12 @@ static void d3d12_command_list_build_raytracing_blas_and_tlas(struct d3d12_comma
     }
 
     if (!d3d12_command_list_allocate_rtas_build_info(list, geometry_count,
-            &build_info, &geometry_infos, &omm_triangles_infos, &range_infos))
+            vkd3d_acceleration_structure_needs_nv_geometry_info(list->device, &desc->Inputs),
+            &build_info, &geometry_infos, &omm_triangles_infos, &nv_geometry_infos, &range_infos))
         goto cleanup;
 
     if (!vkd3d_acceleration_structure_convert_inputs(list->device, &desc->Inputs,
-            build_info, geometry_infos, omm_triangles_infos, range_infos, primitive_counts))
+            build_info, geometry_infos, omm_triangles_infos, nv_geometry_infos, range_infos, primitive_counts))
     {
         ERR("Failed to convert inputs.\n");
         goto fail;

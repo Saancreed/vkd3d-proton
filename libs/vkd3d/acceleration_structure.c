@@ -18,6 +18,7 @@
 
 #define VKD3D_DBG_CHANNEL VKD3D_DBG_CHANNEL_API
 #include "vkd3d_private.h"
+#include "vkd3d_ext_types.h"
 
 #define RT_TRACE TRACE
 
@@ -66,6 +67,37 @@ uint32_t vkd3d_acceleration_structure_get_geometry_count(
         return 1;
     else
         return desc->NumDescs;
+}
+
+bool vkd3d_acceleration_structure_needs_nv_geometry_info(const struct d3d12_device *device,
+        const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS *desc)
+{
+    const VkPhysicalDeviceRayTracingLinearSweptSpheresFeaturesNV *features =
+            &device->device_info.ray_tracing_linear_swept_spheres_features_nv;
+    const D3D12_RAYTRACING_GEOMETRY_DESC *geom_desc;
+    unsigned int i;
+
+    if ((!features->spheres && !features->linearSweptSpheres) ||
+            desc->Type != D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL)
+        return false;
+
+    for (i = 0; i < desc->NumDescs; i++)
+    {
+        geom_desc = desc->DescsLayout == D3D12_ELEMENTS_LAYOUT_ARRAY_OF_POINTERS ?
+                desc->ppGeometryDescs[i] : &desc->pGeometryDescs[i];
+
+        switch ((D3D12_VK_EXT_RAYTRACING_GEOMETRY_TYPE)geom_desc->Type)
+        {
+            case D3D12_VK_EXT_RAYTRACING_GEOMETRY_TYPE_SPHERES_NVAPI:
+                return features->spheres;
+            case D3D12_VK_EXT_RAYTRACING_GEOMETRY_TYPE_LSS_NVAPI:
+                return features->linearSweptSpheres;
+            default:
+                break;
+        }
+    }
+
+    return false;
 }
 
 static void vkd3d_acceleration_structure_convert_triangles(const struct d3d12_device *device,
@@ -118,6 +150,7 @@ bool vkd3d_acceleration_structure_convert_inputs(struct d3d12_device *device,
         VkAccelerationStructureBuildGeometryInfoKHR *build_info,
         VkAccelerationStructureGeometryKHR *geometry_infos,
         VkAccelerationStructureTrianglesOpacityMicromapKHR *omm_triangles_infos,
+        union vkd3d_acceleration_structure_geometry_data_nv *nv_geometry_infos,
         VkAccelerationStructureBuildRangeInfoKHR *range_infos,
         uint32_t *primitive_counts)
 {
@@ -190,6 +223,8 @@ bool vkd3d_acceleration_structure_convert_inputs(struct d3d12_device *device,
         memset(geometry_infos, 0, sizeof(*geometry_infos) * desc->NumDescs);
         if (omm_triangles_infos)
             memset(omm_triangles_infos, 0, sizeof(*omm_triangles_infos) * desc->NumDescs);
+        if (nv_geometry_infos)
+            memset(nv_geometry_infos, 0, sizeof(*nv_geometry_infos) * desc->NumDescs);
         if (primitive_counts)
             memset(primitive_counts, 0, sizeof(*primitive_counts) * desc->NumDescs);
 

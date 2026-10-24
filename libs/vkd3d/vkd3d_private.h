@@ -5947,9 +5947,7 @@ struct d3d12_device
 #endif
         struct vkd3d_nv_shader nv_shader;
 
-        /* Set by SetCreatePipelineStateOptions (NVAPI). NVAPI has no per-pipeline OMM opt-in
-         * (unlike DXR 1.2's ALLOW_OPACITY_MICROMAPS flag), so this global is OR'd into every
-         * RT pipeline creation to implement the device-wide enable/disable semantic. */
+        /* Set by SetCreatePipelineStateOptions (NVAPI) for subsequent RT pipeline creations. */
         VkPipelineCreateFlags2 global_ray_tracing_pipeline_create_flags;
 
         /* Sticky one-way bit: set the first time NVAPI ENABLE_OMM_SUPPORT is observed on this

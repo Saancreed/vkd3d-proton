@@ -20,13 +20,15 @@
 #include "vkd3d_private.h"
 #include "vkd3d_ext_nvapi_types.h"
 
+/* FIXME: Only available in preview D3D12 headers. */
+#define D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_DATA_ACCESS 0x100
+
 #define RT_TRACE TRACE
 
 static VkBuildAccelerationStructureFlagsKHR d3d12_build_flags_to_vk(
         D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS flags)
 {
     VkBuildAccelerationStructureFlagsKHR vk_flags = 0;
-
     if (flags & D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_COMPACTION)
         vk_flags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR;
     if (flags & D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_UPDATE)
@@ -44,6 +46,8 @@ static VkBuildAccelerationStructureFlagsKHR d3d12_build_flags_to_vk(
     }
     if (flags & D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_DISABLE_OMMS)
         vk_flags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_DISABLE_OPACITY_MICROMAPS_BIT_KHR;
+    if (flags & D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_ALLOW_DATA_ACCESS)
+        vk_flags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_DATA_ACCESS_BIT_KHR;
 
     return vk_flags;
 }
